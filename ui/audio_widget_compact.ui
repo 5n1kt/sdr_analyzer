@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DockWidget</class>
+ <widget class="QDockWidget" name="DockWidget">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>320</width><height>480</height></rect>
+  </property>
+  <property name="windowTitle"><string>DEMODULADOR</string></property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QVBoxLayout" name="verticalLayout_main">
+    <property name="spacing"><number>4</number></property>
+    <property name="leftMargin"><number>4</number></property>
+    <property name="topMargin"><number>4</number></property>
+    <property name="rightMargin"><number>4</number></property>
+    <property name="bottomMargin"><number>4</number></property>
+
+    <!-- Fila superior -->
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_top">
+      <property name="spacing"><number>4</number></property>
+      <item>
+       <widget class="QLabel" name="label_status_icon">
+        <property name="minimumSize"><size><width>24</width><height>24</height></size></property>
+        <property name="maximumSize"><size><width>24</width><height>24</height></size></property>
+        <property name="font"><font><pointsize>12</pointsize></font></property>
+        <property name="text"><string>🔇</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="comboBox_mode">
+        <item><property name="text"><string>FM</string></property></item>
+        <item><property name="text"><string>NBFM</string></property></item>
+        <item><property name="text"><string>AM</string></property></item>
+        <item><property name="text"><string>LSB</string></property></item>
+        <item><property name="text"><string>USB</string></property></item>
+        <item><property name="text"><string>CW</string></property></item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_squelch_indicator">
+        <property name="minimumSize"><size><width>20</width><height>20</height></size></property>
+        <property name="maximumSize"><size><width>20</width><height>20</height></size></property>
+        <property name="toolTip"><string>Squelch cerrado</string></property>
+        <property name="text"><string>🔴</string></property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_top">
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
+        <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_mute">
+        <property name="minimumSize"><size><width>30</width><height>24</height></size></property>
+        <property name="maximumSize"><size><width>30</width><height>24</height></size></property>
+        <property name="toolTip"><string>Silenciar</string></property>
+        <property name="text"><string>🔊</string></property>
+        <property name="checkable"><bool>true</bool></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_demodulator">
+        <property name="text"><string>Demod ON</string></property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+
+    <!-- VU meter -->
+    <item>
+     <widget class="QFrame" name="frame_vu_meter">
+      <property name="frameShape"><enum>QFrame::StyledPanel</enum></property>
+      <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
+      <layout class="QHBoxLayout" name="horizontalLayout_vu">
+       <property name="leftMargin"><number>2</number></property>
+       <property name="topMargin"><number>2</number></property>
+       <property name="rightMargin"><number>2</number></property>
+       <property name="bottomMargin"><number>2</number></property>
+       <item>
+        <widget class="QLabel" name="label_vu">
+         <property name="styleSheet">
+          <string notr="true">background-color: #2a2a2a; border: 1px solid #404040;</string>
+         </property>
+         <property name="text"><string>-60 dB</string></property>
+         <property name="alignment"><set>Qt::AlignCenter</set></property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- SNR bar (NUEVA) -->
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_snr">
+      <property name="spacing"><number>4</number></property>
+      <item>
+       <widget class="QLabel" name="label_snr_icon">
+        <property name="text"><string>SNR</string></property>
+        <property name="minimumSize"><size><width>28</width><height>16</height></size></property>
+        <property name="maximumSize"><size><width>28</width><height>16</height></size></property>
+        <property name="toolTip"><string>Relación señal/ruido estimada del canal</string></property>
+        <property name="alignment"><set>Qt::AlignCenter</set></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QProgressBar" name="progressBar_snr">
+        <property name="toolTip"><string>SNR del canal (0–60 dB)</string></property>
+        <property name="minimum"><number>0</number></property>
+        <property name="maximum"><number>60</number></property>
+        <property name="value"><number>0</number></property>
+        <property name="textVisible"><bool>false</bool></property>
+        <property name="maximumHeight"><number>8</number></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_snr_value">
+        <property name="text"><string>-- dB</string></property>
+        <property name="minimumSize"><size><width>42</width><height>16</height></size></property>
+        <property name="maximumSize"><size><width>42</width><height>16</height></size></property>
+        <property name="toolTip"><string>SNR estimada del canal</string></property>
+        <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+
+    <!-- Volumen + Squelch -->
+    <item>
+     <layout class="QGridLayout" name="gridLayout_controls">
+      <property name="horizontalSpacing"><number>4</number></property>
+      <property name="verticalSpacing"><number>2</number></property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_volume_icon">
+        <property name="minimumSize"><size><width>20</width><height>16</height></size></property>
+        <property name="text"><string>🔊</string></property>
+       </widget>
+      </item>
+      <item row="0" column="1" colspan="2">
+       <widget class="QSlider" name="horizontalSlider_volume">
+        <property name="minimum"><number>0</number></property>
+        <property name="maximum"><number>100</number></property>
+        <property name="value"><number>80</number></property>
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QLabel" name="label_volume_value">
+        <property name="minimumSize"><size><width>35</width><height>16</height></size></property>
+        <property name="text"><string>80%</string></property>
+        <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_squelch_icon">
+        <property name="minimumSize"><size><width>20</width><height>16</height></size></property>
+        <property name="text"><string>🔇</string></property>
+       </widget>
+      </item>
+      <item row="1" column="1" colspan="2">
+       <widget class="QSlider" name="horizontalSlider_squelch">
+        <property name="minimum"><number>1</number></property>
+        <property name="maximum"><number>100</number></property>
+        <property name="value"><number>10</number></property>
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QLabel" name="label_squelch_value">
+        <property name="minimumSize"><size><width>35</width><height>16</height></size></property>
+        <property name="text"><string>0.10</string></property>
+        <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="3">
+       <widget class="QCheckBox" name="checkBox_squelch_enable">
+        <property name="text"><string>Habilitar squelch</string></property>
+        <property name="checked"><bool>true</bool></property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+
+    <item>
+     <widget class="Line" name="line_1">
+      <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
+      <property name="orientation"><enum>Qt::Horizontal</enum></property>
+     </widget>
+    </item>
+
+    <!-- AGC (NUEVA) -->
+    <item>
+     <widget class="QGroupBox" name="groupBox_agc">
+      <property name="title"><string>AGC</string></property>
+      <property name="flat"><bool>true</bool></property>
+      <layout class="QHBoxLayout" name="horizontalLayout_agc">
+       <property name="leftMargin"><number>4</number></property>
+       <property name="topMargin"><number>4</number></property>
+       <property name="rightMargin"><number>4</number></property>
+       <property name="bottomMargin"><number>4</number></property>
+       <item>
+        <widget class="QCheckBox" name="checkBox_agc">
+         <property name="toolTip">
+          <string>Control automático de ganancia.
+Mantiene el nivel de audio constante
+independientemente de la señal recibida.</string>
+         </property>
+         <property name="text"><string>Control automático de ganancia</string></property>
+         <property name="checked"><bool>false</bool></property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_agc">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- BFO -->
+    <item>
+     <widget class="QGroupBox" name="groupBox_bfo">
+      <property name="title"><string>BFO</string></property>
+      <property name="flat"><bool>true</bool></property>
+      <property name="checkable"><bool>true</bool></property>
+      <property name="checked"><bool>false</bool></property>
+      <layout class="QHBoxLayout" name="horizontalLayout_bfo">
+       <property name="leftMargin"><number>4</number></property>
+       <property name="topMargin"><number>4</number></property>
+       <property name="rightMargin"><number>4</number></property>
+       <property name="bottomMargin"><number>4</number></property>
+       <item>
+        <widget class="QLabel" name="label_bfo_freq">
+         <property name="text"><string>Freq:</string></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="spinBox_bfo">
+         <property name="suffix"><string> Hz</string></property>
+         <property name="minimum"><number>-3000</number></property>
+         <property name="maximum"><number>3000</number></property>
+         <property name="singleStep"><number>50</number></property>
+         <property name="value"><number>600</number></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkBox_bfo_auto">
+         <property name="text"><string>Auto</string></property>
+         <property name="checked"><bool>true</bool></property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_bfo">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- Filtros -->
+    <item>
+     <widget class="QGroupBox" name="groupBox_filters">
+      <property name="title"><string>FILTROS</string></property>
+      <property name="flat"><bool>true</bool></property>
+      <layout class="QHBoxLayout" name="horizontalLayout_filters">
+       <property name="leftMargin"><number>4</number></property>
+       <property name="topMargin"><number>4</number></property>
+       <property name="rightMargin"><number>4</number></property>
+       <property name="bottomMargin"><number>4</number></property>
+       <item>
+        <widget class="QLabel" name="label_lpf">
+         <property name="toolTip"><string>Filtro pasa bajos</string></property>
+         <property name="text"><string>LP:</string></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="comboBox_lowpass">
+         <item><property name="text"><string>2.4k</string></property></item>
+         <item><property name="text"><string>3.0k</string></property></item>
+         <item><property name="text"><string>3.5k</string></property></item>
+         <item><property name="text"><string>5.0k</string></property></item>
+         <item><property name="text"><string>8.0k</string></property></item>
+         <item><property name="text"><string>10k</string></property></item>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_hpf">
+         <property name="toolTip"><string>Filtro pasa altos</string></property>
+         <property name="text"><string>HP:</string></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="comboBox_highpass">
+         <item><property name="text"><string>OFF</string></property></item>
+         <item><property name="text"><string>50</string></property></item>
+         <item><property name="text"><string>100</string></property></item>
+         <item><property name="text"><string>200</string></property></item>
+         <item><property name="text"><string>300</string></property></item>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_filters">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- Grabación WAV (NUEVA) -->
+    <item>
+     <widget class="QGroupBox" name="groupBox_recording">
+      <property name="title"><string>GRABACIÓN</string></property>
+      <property name="flat"><bool>true</bool></property>
+      <layout class="QHBoxLayout" name="horizontalLayout_recording">
+       <property name="leftMargin"><number>4</number></property>
+       <property name="topMargin"><number>4</number></property>
+       <property name="rightMargin"><number>4</number></property>
+       <property name="bottomMargin"><number>4</number></property>
+       <item>
+        <widget class="QPushButton" name="pushButton_record">
+         <property name="minimumSize"><size><width>68</width><height>24</height></size></property>
+         <property name="maximumSize"><size><width>68</width><height>24</height></size></property>
+         <property name="toolTip"><string>Grabar audio demodulado a archivo WAV</string></property>
+         <property name="text"><string>⏺ GRABAR</string></property>
+         <property name="checkable"><bool>true</bool></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_record_filename">
+         <property name="text"><string>sin archivo</string></property>
+         <property name="toolTip"><string>Archivo WAV de salida</string></property>
+         <property name="minimumSize"><size><width>80</width><height>16</height></size></property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_rec">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="sizeHint" stdset="0"><size><width>10</width><height>20</height></size></property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_record_time">
+         <property name="text"><string>--:--</string></property>
+         <property name="toolTip"><string>Duración de la grabación activa</string></property>
+         <property name="minimumSize"><size><width>36</width><height>16</height></size></property>
+         <property name="maximumSize"><size><width>36</width><height>16</height></size></property>
+         <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- Dispositivo de audio -->
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_device">
+      <property name="spacing"><number>4</number></property>
+      <item>
+       <widget class="QLabel" name="label_device_icon">
+        <property name="text"><string>🎧</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="comboBox_audio_device"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_test_tone">
+        <property name="minimumSize"><size><width>30</width><height>24</height></size></property>
+        <property name="maximumSize"><size><width>30</width><height>24</height></size></property>
+        <property name="toolTip"><string>Probar tono de audio</string></property>
+        <property name="text"><string>🔊</string></property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+
+    <item>
+     <spacer name="verticalSpacer">
+      <property name="orientation"><enum>Qt::Vertical</enum></property>
+      <property name="sizeType"><enum>QSizePolicy::MinimumExpanding</enum></property>
+      <property name="sizeHint" stdset="0"><size><width>20</width><height>5</height></size></property>
+     </spacer>
+    </item>
+
+   </layout>
+  </widget>
+ </widget>
+
+ <tabstops>
+  <tabstop>comboBox_mode</tabstop>
+  <tabstop>pushButton_mute</tabstop>
+  <tabstop>pushButton_demodulator</tabstop>
+  <tabstop>horizontalSlider_volume</tabstop>
+  <tabstop>horizontalSlider_squelch</tabstop>
+  <tabstop>checkBox_squelch_enable</tabstop>
+  <tabstop>checkBox_agc</tabstop>
+  <tabstop>groupBox_bfo</tabstop>
+  <tabstop>spinBox_bfo</tabstop>
+  <tabstop>checkBox_bfo_auto</tabstop>
+  <tabstop>comboBox_lowpass</tabstop>
+  <tabstop>comboBox_highpass</tabstop>
+  <tabstop>pushButton_record</tabstop>
+  <tabstop>comboBox_audio_device</tabstop>
+  <tabstop>pushButton_test_tone</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

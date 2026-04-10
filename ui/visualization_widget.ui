@@ -1,0 +1,466 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DockWidget</class>
+ <widget class="QDockWidget" name="DockWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>423</width>
+    <height>450</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>VISUALIZACIÓN</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QHBoxLayout" name="horizontalLayout_main">
+    <property name="spacing">
+     <number>8</number>
+    </property>
+    <property name="leftMargin">
+     <number>6</number>
+    </property>
+    <property name="topMargin">
+     <number>6</number>
+    </property>
+    <property name="rightMargin">
+     <number>6</number>
+    </property>
+    <property name="bottomMargin">
+     <number>6</number>
+    </property>
+    <item>
+     <widget class="QWidget" name="widget_controls_container" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout_controls">
+       <property name="spacing">
+        <number>8</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QGroupBox" name="groupBox_colormap">
+         <property name="title">
+          <string>MAPA DE COLORES</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_colormap">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>6</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <property name="horizontalSpacing">
+           <number>6</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>4</number>
+          </property>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="comboBox_color_map"/>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_colormap">
+            <property name="text">
+             <string>Mapa:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <spacer name="horizontalSpacer_colormap">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_persistence">
+         <property name="title">
+          <string>PERSISTENCIA</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_persistence">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>6</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <property name="horizontalSpacing">
+           <number>6</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>4</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_persistence">
+            <property name="text">
+             <string>Persistencia:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QSlider" name="horizontalSlider_persistence">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>99</number>
+            </property>
+            <property name="value">
+             <number>50</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QLabel" name="label_persistence_value">
+            <property name="minimumSize">
+             <size>
+              <width>40</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>50%</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="3">
+           <widget class="QLabel" name="label_persistence_info">
+            <property name="styleSheet">
+             <string notr="true">color: #888888; font-size: 8pt;</string>
+            </property>
+            <property name="text">
+             <string>Mayor persistencia = trazas más largas</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_curves">
+         <property name="title">
+          <string>CURVAS</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_curves">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>6</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <property name="horizontalSpacing">
+           <number>6</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>4</number>
+          </property>
+          <item row="0" column="1">
+           <widget class="QCheckBox" name="checkBox_plot_min">
+            <property name="text">
+             <string>Mínimos</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QComboBox" name="comboBox_hold_time">
+            <item>
+             <property name="text">
+              <string>Manual</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>1s</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>2s</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5s</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>10s</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>30s</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>60s</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="checkBox_plot_max">
+            <property name="text">
+             <string>Máximos</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <spacer name="horizontalSpacer_curves">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_actions">
+         <property name="title">
+          <string>ACCIONES</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_actions">
+          <property name="spacing">
+           <number>6</number>
+          </property>
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>6</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <item>
+           <widget class="QPushButton" name="pushButton_auto_range">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>28</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>🔄 AUTO</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_clear_persistence">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>28</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>🗑️ LIMPIAR</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_test">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>28</height>
+          </size>
+         </property>
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>🎨 PROBAR COLORES</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="frame_colorbar_container">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_colorbar_container">
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <property name="leftMargin">
+        <number>2</number>
+       </property>
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="rightMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+       <item>
+        <widget class="QSpinBox" name="max_spin">
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="suffix">
+          <string> dB</string>
+         </property>
+         <property name="minimum">
+          <number>-150</number>
+         </property>
+         <property name="maximum">
+          <number>50</number>
+         </property>
+         <property name="singleStep">
+          <number>5</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="frame_colorbar">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>1</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_colorbar">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="min_spin">
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="suffix">
+          <string> dB</string>
+         </property>
+         <property name="minimum">
+          <number>-150</number>
+         </property>
+         <property name="maximum">
+          <number>0</number>
+         </property>
+         <property name="singleStep">
+          <number>5</number>
+         </property>
+         <property name="value">
+          <number>-120</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>comboBox_color_map</tabstop>
+  <tabstop>horizontalSlider_persistence</tabstop>
+  <tabstop>checkBox_plot_max</tabstop>
+  <tabstop>checkBox_plot_min</tabstop>
+  <tabstop>pushButton_auto_range</tabstop>
+  <tabstop>pushButton_clear_persistence</tabstop>
+  <tabstop>pushButton_test</tabstop>
+  <tabstop>max_spin</tabstop>
+  <tabstop>min_spin</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

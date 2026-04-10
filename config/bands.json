@@ -1,0 +1,300 @@
+{
+  "bands": [
+    {
+      "index": 0,
+      "name": "CB Radio",
+      "display": "CB Radio",
+      "range": "26 - 28 MHz",
+      "type": "communications",
+      "mode": "NARROW",
+      "unavailable": true,
+      "note": "Fuera de rango del BladeRF (70MHz - 6GHz)",
+      "frequencies": []
+    },
+    {
+      "index": 1,
+      "name": "FM Broadcast",
+      "display": "FM Broadcast",
+      "range": "88 - 108 MHz",
+      "type": "broadcast",
+      "mode": "WIDE",
+      "description": "Radio FM comercial",
+      "frequencies": {
+        "type": "range",
+        "start": 88,
+        "end": 108,
+        "step": 0.1
+      }
+    },
+    {
+      "index": 2,
+      "name": "Airband",
+      "display": "Airband",
+      "range": "118 - 137 MHz",
+      "type": "aviation",
+      "mode": "NARROW",
+      "description": "Comunicaciones aeronáuticas",
+      "frequencies": {
+        "type": "range",
+        "start": 118,
+        "end": 137,
+        "step": 0.025
+      }
+    },
+    {
+      "index": 3,
+      "name": "VHF Amateur",
+      "display": "VHF Amateur",
+      "range": "144 - 148 MHz",
+      "type": "amateur",
+      "mode": "NARROW",
+      "description": "Banda de 2 metros",
+      "frequencies": {
+        "type": "range",
+        "start": 144,
+        "end": 148,
+        "step": 0.025
+      }
+    },
+    {
+      "index": 4,
+      "name": "UHF Amateur",
+      "display": "UHF Amateur",
+      "range": "430 - 440 MHz",
+      "type": "amateur",
+      "mode": "NARROW",
+      "description": "Banda de 70 centímetros",
+      "frequencies": {
+        "type": "range",
+        "start": 430,
+        "end": 440,
+        "step": 0.025
+      }
+    },
+    {
+      "index": 5,
+      "name": "GSM 900",
+      "display": "GSM 900",
+      "range": "880 - 960 MHz",
+      "type": "cellular",
+      "mode": "MEDIUM",
+      "description": "Telefonía móvil 2G",
+      "frequencies": {
+        "type": "range",
+        "start": 880,
+        "end": 960,
+        "step": 0.2
+      }
+    },
+    {
+      "index": 6,
+      "name": "GSM 1800",
+      "display": "GSM 1800",
+      "range": "1710 - 1880 MHz",
+      "type": "cellular",
+      "mode": "MEDIUM",
+      "description": "Telefonía móvil 2G/3G",
+      "frequencies": {
+        "type": "range",
+        "start": 1710,
+        "end": 1880,
+        "step": 0.2
+      }
+    },
+    {
+      "index": 7,
+      "name": "LTE 700",
+      "display": "LTE 700",
+      "range": "758 - 803 MHz",
+      "type": "cellular",
+      "mode": "WIDE",
+      "description": "Banda 4G LTE",
+      "frequencies": {
+        "type": "range",
+        "start": 758,
+        "end": 803,
+        "step": 5
+      }
+    },
+    {
+      "index": 8,
+      "name": "LTE 800",
+      "display": "LTE 800",
+      "range": "791 - 821 MHz",
+      "type": "cellular",
+      "mode": "WIDE",
+      "description": "Banda 4G LTE",
+      "frequencies": {
+        "type": "range",
+        "start": 791,
+        "end": 821,
+        "step": 5
+      }
+    },
+    {
+      "index": 9,
+      "name": "LTE 1800",
+      "display": "LTE 1800",
+      "range": "1710 - 1785 MHz",
+      "type": "cellular",
+      "mode": "WIDE",
+      "description": "Banda 4G LTE",
+      "frequencies": {
+        "type": "range",
+        "start": 1710,
+        "end": 1785,
+        "step": 5
+      }
+    },
+    {
+      "index": 10,
+      "name": "LTE 2600",
+      "display": "LTE 2600",
+      "range": "2500 - 2690 MHz",
+      "type": "cellular",
+      "mode": "WIDE",
+      "description": "Banda 4G LTE",
+      "frequencies": {
+        "type": "range",
+        "start": 2500,
+        "end": 2690,
+        "step": 5
+      }
+    },
+    {
+      "index": 11,
+      "name": "WiFi 2.4 GHz",
+      "display": "WiFi 2.4 GHz",
+      "range": "2400 - 2483 MHz",
+      "type": "wifi",
+      "mode": "WIDE",
+      "description": "Redes WiFi y dispositivos ISM",
+      "frequencies": {
+        "type": "list",
+        "values": [2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484]
+      }
+    },
+    {
+      "index": 12,
+      "name": "DRON 2.4 GHz",
+      "display": "DRON 2.4 GHz",
+      "range": "2400 - 2483 MHz",
+      "type": "drone",
+      "mode": "WIDE",
+      "description": "DJI, Autel y otros drones",
+      "frequencies": {
+        "type": "generator",
+        "function": "drone_24ghz"
+      }
+    },
+    {
+      "index": 13,
+      "name": "WiFi 5 GHz",
+      "display": "WiFi 5 GHz",
+      "range": "5150 - 5850 MHz",
+      "type": "wifi",
+      "mode": "WIDE",
+      "description": "Redes WiFi 5 GHz",
+      "frequencies": {
+        "type": "range_multi",
+        "ranges": [
+          {"start": 5180, "end": 5320, "step": 20},
+          {"start": 5500, "end": 5700, "step": 20}
+        ],
+        "extra": [5745, 5765, 5785, 5805, 5825]
+      }
+    },
+    {
+      "index": 14,
+      "name": "DRON 5.8 GHz",
+      "display": "DRON 5.8 GHz",
+      "range": "5645 - 5945 MHz",
+      "type": "drone",
+      "mode": "WIDE",
+      "description": "DJI, Autel, FPV analógico",
+      "frequencies": {
+        "type": "generator",
+        "function": "drone_58ghz"
+      }
+    },
+    {
+      "index": 15,
+      "name": "FPV Analógico",
+      "display": "FPV Analógico",
+      "range": "5645 - 5945 MHz",
+      "type": "fpv",
+      "mode": "WIDE",
+      "description": "Canales de video FPV analógico",
+      "frequencies": {
+        "type": "list",
+        "values": [5658, 5695, 5732, 5769, 5806, 5843, 5880, 5917, 5705, 5745, 5785, 5825, 5865, 5645, 5665, 5685, 5885, 5905, 5925, 5945]
+      }
+    },
+    {
+      "index": 16,
+      "name": "Radar Aéreo (L)",
+      "display": "Radar Aéreo (L)",
+      "range": "1200 - 1400 MHz",
+      "type": "radar",
+      "mode": "WIDE",
+      "description": "Vigilancia aérea, ADS-B",
+      "frequencies": {
+        "type": "range",
+        "start": 1200,
+        "end": 1400,
+        "step": 2
+      }
+    },
+    {
+      "index": 17,
+      "name": "Radar Meteo (S)",
+      "display": "Radar Meteo (S)",
+      "range": "2700 - 2900 MHz",
+      "type": "radar",
+      "mode": "WIDE",
+      "description": "Radar meteorológico",
+      "frequencies": {
+        "type": "range",
+        "start": 2700,
+        "end": 2900,
+        "step": 5
+      }
+    },
+    {
+      "index": 18,
+      "name": "Radar Marítimo (X)",
+      "display": "Radar Marítimo (X)",
+      "range": "9300 - 9500 MHz",
+      "type": "radar",
+      "mode": "WIDE",
+      "unavailable": true,
+      "note": "Fuera de rango del BladeRF (máx 6GHz)",
+      "frequencies": []
+    },
+    {
+      "index": 19,
+      "name": "Radioenlaces",
+      "display": "Radioenlaces",
+      "range": "3300-3600 / 5650-5850 MHz",
+      "type": "microwave",
+      "mode": "WIDE",
+      "description": "Radioenlaces punto a punto",
+      "frequencies": {
+        "type": "range_multi",
+        "ranges": [
+          {"start": 3300, "end": 3600, "step": 10},
+          {"start": 5650, "end": 5850, "step": 10}
+        ]
+      }
+    },
+    {
+      "index": 20,
+      "name": "Personalizada",
+      "display": "Personalizada",
+      "range": "Definida por usuario",
+      "type": "custom",
+      "mode": "CUSTOM",
+      "frequencies": [100]
+    }
+  ]
+}

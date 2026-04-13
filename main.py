@@ -16,7 +16,6 @@ from controller.base_controller import MainController
 from utils.config_manager import ConfigManager
 from utils.theme_manager import ThemeManager
 
-
 # =======================================================================
 # FUNCIONES DE CONFIGURACIÓN
 # =======================================================================
@@ -50,9 +49,6 @@ def setup_dark_theme(app):
     theme_manager = ThemeManager()
     theme_manager.apply_theme_to_app(app, 'dark')
     # El stylesheet ahora se maneja desde ThemeManager
-
-
-
 
 # =======================================================================
 # PUNTO DE ENTRADA PRINCIPAL

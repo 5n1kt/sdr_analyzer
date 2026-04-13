@@ -424,20 +424,22 @@ class RFController:
             self.main.bladerf.configure(filtered)
 
     def _handle_sample_rate_change(self, new_sr: float) -> None:
+        """Maneja cambios de sample rate"""
         self.logger.info(f"🔄 Sample rate → {new_sr/1e6:.1f} MSPS")
 
+        # Actualizar procesadores
         if hasattr(self.main, 'iq_processor') and self.main.iq_processor:
             self.main.iq_processor.update_sample_rate(new_sr)
 
         if hasattr(self.main, 'fft_processor') and self.main.fft_processor:
             self.main.fft_processor.update_settings({'sample_rate': new_sr})
 
-        '''if hasattr(self.main, 'iq_manager'):
-            self.main.iq_manager.current_sample_rate = new_sr'''
-
+        # ===== ACTUALIZAR IQ MANAGER CON EL VALOR REAL =====
         if hasattr(self.main, 'iq_manager') and self.main.bladerf:
             freq_mhz = self.main.bladerf.frequency / 1e6
             self.main.iq_manager.set_rf_info(freq_mhz, new_sr)
+            self.logger.debug(f"   IQ Manager actualizado: {freq_mhz:.1f} MHz, {new_sr/1e6:.1f} MSPS")
+        # ===================================================
 
     # ------------------------------------------------------------------
     # ESTADÍSTICAS Y MONITOREO

@@ -113,6 +113,7 @@ class UIController:
         
         # 6. IQ Manager (almacenamiento)
         self.main.iq_manager = IQManagerWidget(self.main)
+        self.main.iq_manager.set_controller(self.main)
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.iq_manager)
     
     # -----------------------------------------------------------------------

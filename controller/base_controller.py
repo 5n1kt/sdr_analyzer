@@ -97,6 +97,10 @@ class MainController(QMainWindow):
         
         # Cargar configuración
         self.config_manager.load_all_settings(self)
+
+        if hasattr(self, 'playback_ctrl') and hasattr(self, 'iq_manager'):
+            self.playback_ctrl.set_metadata_callback(self.iq_manager._on_playback_metadata)
+            self.logger.info("✅ Callback de metadata conectado entre playback_ctrl e iq_manager")
         
         self.logger.info("✅ Controlador principal inicializado")
     
@@ -231,15 +235,20 @@ class MainController(QMainWindow):
     # ===== Playback Methods =====
     def on_playback_requested(self, filename, play):
         """Delegado a Playback Controller"""
-        self.playback_ctrl.on_playback_requested(filename, play)
+        if hasattr(self, 'playback_ctrl'):
+            self.playback_ctrl.on_playback_requested(filename, play)
+        else:
+            self.logger.error("❌ playback_ctrl no disponible")
     
     def start_playback(self, filename):
         """Delegado a Playback Controller"""
-        self.playback_ctrl.start_playback(filename)
+        if hasattr(self, 'playback_ctrl'):
+            self.playback_ctrl.start_playback(filename)
     
     def stop_playback(self):
         """Delegado a Playback Controller"""
-        self.playback_ctrl.stop_playback()
+        if hasattr(self, 'playback_ctrl'):
+            self.playback_ctrl.stop_playback()
 
     def pause_playback(self):
         """Delegado a Playback Controller"""

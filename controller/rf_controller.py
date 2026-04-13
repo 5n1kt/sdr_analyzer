@@ -182,34 +182,69 @@ class RFController:
         return {}
 
     def _create_buffers(self) -> None:
-        """Crea los ring buffers ajustando el tamaño según sample rate."""
-        device           = self.main.bladerf
-        samples_per_block = device.samples_per_block
+        """
+        Crea los ring buffers para visualización y grabación.
 
-        # CAMBIO: se accede a device.sample_rate (interfaz), no bladerf.sample_rate
-        current_sr = device.sample_rate
-        if current_sr > 40e6:
-            num_viz_buffers = 24
-            num_rec_buffers = 8192
-            self.logger.info(
-                f"⚡ Sample rate alto ({current_sr/1e6:.0f} MHz) — "
-                "usando buffers grandes"
-            )
-        else:
-            num_viz_buffers = 12
-            num_rec_buffers = 4096
+        CORRECCIÓN: recording_ring_buffer ahora usa use_shared_memory=False
+        (threading.Lock en lugar de multiprocessing.Lock).
+
+        Problema original:
+            use_shared_memory=True instancia un multiprocessing.Lock que,
+            aunque IQRecorderSimple es un QThread dentro del mismo proceso,
+            adquiere el lock pasando por el kernel en cada get_read_buffer()
+            y release_read(). A 56 MSPS (6836 bufs/s) esto estrangulaba el
+            grabador al ~1% de la tasa real — por eso el archivo quedaba con
+            solo 1-2 segundos de señal aunque la sesión durara 10 segundos.
+            Además, use_shared_memory=True reservaba 256-512 MB de shared
+            memory innecesaria (todos los consumers son threads, no procesos).
+
+        Cálculo de slots de grabación:
+            Se dimensiona para almacenar REC_BUFFER_SECONDS segundos de señal
+            completa sin que el grabador pierda datos aunque el disco tenga
+            picos de latencia (escrituras lentas, flush, etc.).
+            Fórmula: ceil(SR / samples_per_block * REC_BUFFER_SECONDS)
+        """
+        device            = self.main.bladerf
+        samples_per_block = device.samples_per_block
+        current_sr        = device.sample_rate
+
+        # ── Buffer de visualización (sin cambios) ────────────────────────────
+        num_viz_buffers = 24 if current_sr > 40e6 else 12
+
+        # ── Buffer de grabación — threading, tamaño calculado ────────────────
+        # Objetivo: absorber REC_BUFFER_SECONDS de señal completa
+        # aunque el hilo de escritura a disco tenga latencia puntual.
+        REC_BUFFER_SECONDS = 5                          # segundos de colchón
+        blocks_per_second  = current_sr / samples_per_block
+        num_rec_buffers    = max(
+            256,                                        # mínimo absoluto
+            int(blocks_per_second * REC_BUFFER_SECONDS + 0.5)
+        )
+
+        self.logger.info(
+            f"📦 ring_buffer:           {num_viz_buffers} slots × "
+            f"{samples_per_block} muestras"
+        )
+        self.logger.info(
+            f"📦 recording_ring_buffer: {num_rec_buffers} slots × "
+            f"{samples_per_block} muestras  "
+            f"({num_rec_buffers * samples_per_block * 8 / 1e6:.1f} MB RAM)"
+        )
 
         self.main.ring_buffer = IQRingBuffer(
-            num_buffers      = num_viz_buffers,
+            num_buffers        = num_viz_buffers,
             samples_per_buffer = samples_per_block,
-            use_shared_memory  = False
+            use_shared_memory  = False          # threading.Lock — siempre fue correcto
         )
+
+        # ── CORRECCIÓN: False en lugar de True ───────────────────────────────
         self.main.recording_ring_buffer = IQRingBuffer(
-            num_buffers      = num_rec_buffers,
+            num_buffers        = num_rec_buffers,
             samples_per_buffer = samples_per_block,
-            use_shared_memory  = True
+            use_shared_memory  = False          # mismo proceso → threading.Lock
         )
-        
+        # ─────────────────────────────────────────────────────────────────────
+
         # Notificar al IQ Manager
         if hasattr(self.main, 'iq_manager'):
             freq_mhz = self.main.bladerf.frequency / 1e6
@@ -245,7 +280,7 @@ class RFController:
         #self.main.fft_processor.fft_data_ready.connect(self.main.update_spectrum)
         self.main.iq_processor.stats_updated.connect(self._on_iq_stats)
         #self.main.fft_processor.stats_updated.connect(self._on_fft_stats)
-        self.main.fft_ctrl.connect_fft_processor(self.main.fft_processor)          
+        self.main.fft_ctrl.connect_fft_processor(self.main.fft_processor)
 
 
     def _configure_throttling(self, params: dict, samples_per_block: int) -> None:
@@ -362,7 +397,6 @@ class RFController:
         if changes:
             self.logger.info(f"📻 Actualizando RF: {changes}")
 
-        # Cambio de solo frecuencia mientras se está capturando → ruta rápida
         if self._is_frequency_only_change(settings) and self.main.is_running:
             if self._try_fast_frequency_change(settings):
                 return
@@ -401,12 +435,6 @@ class RFController:
         )
 
     def _try_fast_frequency_change(self, settings: dict) -> bool:
-        """
-        Usa device.set_frequency() del contrato SDRDevice.
-
-        CAMBIO: ya no busca set_frequency_fast() con hasattr — todos los
-        drivers implementan set_frequency() como parte de la interfaz.
-        """
         freq_hz = settings['frequency']
         self.logger.info(f"📡 Cambio rápido a {freq_hz/1e6:.3f} MHz")
 
@@ -424,22 +452,18 @@ class RFController:
             self.main.bladerf.configure(filtered)
 
     def _handle_sample_rate_change(self, new_sr: float) -> None:
-        """Maneja cambios de sample rate"""
         self.logger.info(f"🔄 Sample rate → {new_sr/1e6:.1f} MSPS")
 
-        # Actualizar procesadores
         if hasattr(self.main, 'iq_processor') and self.main.iq_processor:
             self.main.iq_processor.update_sample_rate(new_sr)
 
         if hasattr(self.main, 'fft_processor') and self.main.fft_processor:
             self.main.fft_processor.update_settings({'sample_rate': new_sr})
 
-        # ===== ACTUALIZAR IQ MANAGER CON EL VALOR REAL =====
         if hasattr(self.main, 'iq_manager') and self.main.bladerf:
             freq_mhz = self.main.bladerf.frequency / 1e6
             self.main.iq_manager.set_rf_info(freq_mhz, new_sr)
             self.logger.debug(f"   IQ Manager actualizado: {freq_mhz:.1f} MHz, {new_sr/1e6:.1f} MSPS")
-        # ===================================================
 
     # ------------------------------------------------------------------
     # ESTADÍSTICAS Y MONITOREO

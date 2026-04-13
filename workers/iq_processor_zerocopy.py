@@ -4,37 +4,39 @@
 # CORRECCIONES APLICADAS
 # ──────────────────────
 # 1. [CRÍTICO] Buffer atascado en FILLING si _read_samples() falla.
-#    Cuando get_write_buffer() marca el slot como BUFFER_FILLING y
-#    _read_samples() retorna False, el loop hacía `continue` sin llamar
-#    commit_write() ni liberar el slot. El buffer quedaba atascado en
-#    FILLING permanentemente, reduciendo el anillo en 1 slot por cada
-#    fallo de lectura hasta quedarse sin slots y bloquear la captura.
 #    FIX: _release_viz_buffer_on_error() libera el slot correctamente.
 #
 # 2. [CRÍTICO] int16_view invalidada si raw_buffer se reasigna externamente.
-#    self.int16_view = np.frombuffer(self.raw_buffer, ...) crea una vista
-#    del bytearray original. Si rfcontroller u otro código reasignaba
-#    self.raw_buffer a un nuevo objeto, int16_view seguía apuntando al
-#    bytearray antiguo y leía datos desactualizados sin ningún error visible.
-#    FIX: raw_buffer y int16_view se recrean juntos en _rebuild_raw_buffer()
-#    y se llama en update_sample_rate() si el tamaño cambia.
+#    FIX: raw_buffer e int16_view se recrean juntos en _rebuild_raw_buffer().
 #
 # 3. [CRÍTICO] _read_and_discard() accede a bladerf.sdr.sync_rx directamente.
-#    Rompe el contrato SDRDevice y falla con cualquier hardware que no sea
-#    BladeRF. FIX: usa self.bladerf.read_samples() del contrato abstracto.
+#    FIX: usa self.bladerf.read_samples() del contrato SDRDevice.
 #
-# 4. [POTENCIAL] _read_samples() accede a bladerf.sdr.sync_rx directamente
-#    como fallback. FIX: eliminado el fallback; solo se usa read_samples()
-#    del contrato SDRDevice. Si el objeto no lo implementa se lanza error claro.
+# 4. [POTENCIAL] _read_samples() accede a bladerf.sdr.sync_rx como fallback.
+#    FIX: eliminado; solo se usa read_samples() del contrato SDRDevice.
 #
-# 5. [POTENCIAL] throttle_skips se incrementaba aunque el frame no esperó
-#    (elapsed >= expected_interval). El contador no representaba "frames
-#    que tuvieron que esperar" sino "frames procesados con throttle activo".
+# 5. [POTENCIAL] throttle_skips se incrementaba aunque el frame no esperó.
 #    FIX: el incremento se mueve dentro del bloque `if sleep_time > 0`.
 #
-# 6. [LIMPIEZA] stop() llama self.wait(2000) que puede expirar si el hardware
-#    está bloqueado en sync_rx (timeout de hardware = 3500ms). Se aumenta
-#    el timeout de espera a 4000ms para cubrir el peor caso.
+# 6. [LIMPIEZA] stop() timeout aumentado a 4000ms.
+#
+# 7. [CRÍTICO - v3] El throttling de visualización estrangulaba la grabación.
+#    El loop original aplicaba _apply_throttling() ANTES de leer del hardware,
+#    de modo que el hardware solo se leía a ~30 bloques/s en lugar de los
+#    6836 bloques/s que produce la BladeRF a 56 MSPS. El recording_buffer
+#    recibía exactamente los mismos 30 bloques/s que el viz_buffer, causando
+#    que el grabador capturara solo ~1% de la señal real (~1 MB/s en vez de
+#    ~1.8 GB/s efectivos después de throttle de hardware).
+#
+#    FIX: separación completa de las dos rutas dentro del loop:
+#      a) Leer del hardware SIN throttle → siempre, todos los bloques.
+#      b) recording_buffer → recibe TODOS los bloques leídos (sin throttle).
+#      c) viz_buffer → recibe solo los bloques que pasan el gate de throttle.
+#
+#    El throttle ahora es un "gate" de decisión aplicado solo al viz_buffer,
+#    sin bloquear el loop con msleep(). Se basa en tiempo transcurrido:
+#    si no ha pasado expected_interval desde el último frame de viz, se
+#    salta el commit al viz_buffer pero se sigue grabando normalmente.
 
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -46,7 +48,7 @@ class IQProcessorZeroCopy(QThread):
     """
     Procesador IQ que escribe en DOS ring buffers en paralelo:
       - ring_buffer      : para visualización (con throttling de FPS)
-      - recording_buffer : para grabación (sin throttling, todos los bloques)
+      - recording_buffer : para grabación (SIN throttling — todos los bloques)
 
     Recibe un objeto SDRDevice (o cualquier objeto con read_samples() y
     bytes_per_sample / samples_per_block) como fuente de hardware.
@@ -55,7 +57,7 @@ class IQProcessorZeroCopy(QThread):
     # -----------------------------------------------------------------------
     # SEÑALES
     # -----------------------------------------------------------------------
-    buffer_written = pyqtSignal(int)   # índice del buffer escrito
+    buffer_written = pyqtSignal(int)
     error_occurred = pyqtSignal(str)
     stats_updated  = pyqtSignal(dict)
 
@@ -66,26 +68,24 @@ class IQProcessorZeroCopy(QThread):
         super().__init__()
         self.logger = logging.getLogger(__name__)
 
-        # Referencias externas
-        self.bladerf          = sdr_device      # nombre histórico conservado
+        self.bladerf          = sdr_device
         self.ring_buffer      = ring_buffer
         self.recording_buffer = recording_buffer
+        # recording_active=False: no escribir en recording_buffer hasta que
+        # el grabador llame attach_recording_buffer(). Evita overflow pre-grabacion.
+        self.recording_active = False
 
-        # Estado del hilo
         self.is_running  = False
         self._stop_flag  = False
 
-        # Configuración de buffers (leída del dispositivo)
         self.samples_per_block = getattr(sdr_device, 'samples_per_block', 8192)
         self.bytes_per_sample  = getattr(sdr_device, 'bytes_per_sample',  4)
         self.bytes_per_block   = self.samples_per_block * self.bytes_per_sample
 
-        # Buffer raw + vista int16 (siempre creados juntos)
-        # CORRECCIÓN 2: se encapsula la creación en un método para que
-        # raw_buffer e int16_view nunca se desincronicen.
+        # CORRECCIÓN 2: raw_buffer e int16_view siempre creados juntos
         self._rebuild_raw_buffer(self.bytes_per_block)
 
-        # Control de throttling para visualización
+        # Throttling — SOLO para visualización, nunca para grabación
         self.throttle_enabled         = True
         self.target_fps               = 30
         self.sample_rate              = getattr(sdr_device, 'sample_rate', 2e6)
@@ -98,7 +98,6 @@ class IQProcessorZeroCopy(QThread):
         self.expected_interval = 1.0 / self.target_blocks_per_second
         self.blocks_processed  = 0
 
-        # Estadísticas
         self.stats = {
             'blocks_received':       0,
             'bytes_received':        0,
@@ -114,22 +113,42 @@ class IQProcessorZeroCopy(QThread):
             f"✅ IQProcessorZeroCopy creado: {self.samples_per_block} muestras/bloque"
         )
         self.logger.info(
-            f"⚙️ Throttling: {self.blocks_per_second:.0f} → "
+            f"⚙️ Throttling viz: {self.blocks_per_second:.0f} → "
             f"{self.target_blocks_per_second} blocks/s (factor {self.throttle_factor}x)"
         )
         if self.recording_buffer:
             self.logger.info(
-                f"📼 Buffer grabación: {self.recording_buffer.num_buffers} buffers"
+                f"📼 Recording buffer: {self.recording_buffer.num_buffers} slots "
+                f"— sin throttle (todos los bloques)"
             )
 
     # -----------------------------------------------------------------------
     # QTHREAD — LOOP PRINCIPAL
     # -----------------------------------------------------------------------
     def run(self):
-        """Loop principal con throttling y dual-buffer."""
+        """
+        Loop principal con throttling SOLO para visualización.
+
+        CORRECCIÓN 7: arquitectura corregida:
+
+        ANTES (bug):
+            loop:
+                msleep(throttle)        ← bloqueaba TODO el loop a 30 iter/s
+                leer hardware           ← solo 30 lecturas/s en vez de 6836/s
+                → viz_buffer            ← 30 bloques/s  ✓ (correcto para viz)
+                → recording_buffer      ← 30 bloques/s  ✗ (debería ser 6836/s)
+
+        DESPUÉS (correcto):
+            loop:
+                leer hardware           ← siempre, sin bloqueo → 6836/s
+                → recording_buffer      ← TODOS los bloques (6836/s) ✓
+                gate_viz = tiempo?      ← ¿pasó expected_interval?
+                si gate_viz:
+                    → viz_buffer        ← solo los bloques que pasan el gate ✓
+        """
         self.is_running  = True
         self._stop_flag  = False
-        self.logger.info("🚀 IQProcessorZeroCopy iniciado (dual buffer)")
+        self.logger.info("🚀 IQProcessorZeroCopy iniciado (dual buffer, throttle solo viz)")
 
         self._ensure_streaming()
 
@@ -138,40 +157,45 @@ class IQProcessorZeroCopy(QThread):
 
         while not self._stop_flag:
             try:
-                if self.throttle_enabled:
-                    self._apply_throttling()
-
-                # Obtener slot de escritura para visualización
-                viz_buffer = self.ring_buffer.get_write_buffer()
-
-                # Obtener slot de escritura para grabación (si existe)
-                rec_buffer = self._get_recording_buffer()
-
-                if viz_buffer is None:
-                    # Sin slot disponible → descartar este bloque
-                    self._handle_buffer_full()
-                    continue
-
-                # Leer datos del hardware
-                # CORRECCIÓN 1 y 4: si falla, liberamos viz_buffer antes de
-                # hacer continue para que el slot no quede atascado en FILLING.
+                # ── PASO 1: Leer del hardware SIN throttle ───────────────────
+                # Esta llamada bloquea hasta que la BladeRF entrega un bloque.
+                # El hardware dicta la cadencia real (6836 bloques/s a 56 MSPS).
+                # No hacemos msleep() antes de leer — dejamos que el hardware
+                # controle el ritmo naturalmente.
                 if not self._read_samples():
+                    # Fallo de lectura: liberar slots reservados y continuar
                     self._release_viz_buffer_on_error()
+                    self.stats['errors'] += 1
                     continue
 
-                # Convertir y escribir en ambos buffers
-                self._bytes_to_complex_dual(viz_buffer, rec_buffer)
+                # ── PASO 2: Grabar — TODOS los bloques, sin excepción ────────
+                if self.recording_active and self.recording_buffer is not None:
+                    rec_buffer = self._get_recording_buffer()
+                    if rec_buffer is not None:
+                        self._write_to_recording(rec_buffer)
+                        self.recording_buffer.commit_write()
+                        self.stats['recording_writes'] += 1
 
-                # Commit de ambos buffers
-                self.ring_buffer.commit_write()
-                if rec_buffer is not None:
-                    self.recording_buffer.commit_write()
-                    self.stats['recording_writes'] += 1
+                # ── PASO 3: Visualización — solo si pasó expected_interval ───
+                now = time.time()
+                elapsed_viz = now - self.last_block_time
+
+                if not self.throttle_enabled or elapsed_viz >= self.expected_interval:
+                    viz_buffer = self.ring_buffer.get_write_buffer()
+
+                    if viz_buffer is not None:
+                        self._write_to_viz(viz_buffer)
+                        self.ring_buffer.commit_write()
+                        self.last_block_time = now
+                    else:
+                        # Ring buffer de viz lleno → descartar este frame de viz
+                        self.stats['overflow_skips']        += 1
+                        self.stats['write_buffer_failures'] += 1
+                else:
+                    # Frame de viz omitido por throttle — la grabación ya se hizo
+                    self.stats['throttle_skips'] += 1
 
                 self._update_stats()
-
-                # Pausa mínima para no saturar la CPU
-                self.msleep(1)
 
             except Exception as exc:
                 self._handle_error(exc)
@@ -193,16 +217,42 @@ class IQProcessorZeroCopy(QThread):
         self.last_block_time   = time.time()
 
         self.logger.info(
-            f"📊 Throttling actualizado: {self.blocks_per_second:.0f} → "
+            f"📊 Throttling viz actualizado: {self.blocks_per_second:.0f} → "
             f"{self.target_blocks_per_second} blocks/s (factor {self.throttle_factor}x)"
         )
+
+    def attach_recording_buffer(self, recording_buffer):
+        """
+        Habilita escritura en recording_buffer.
+        Llamar cuando el grabador arranca — antes el processor no escribe nada.
+        Thread-safe: asignación atómica en CPython.
+        """
+        self.recording_buffer = recording_buffer
+        self.recording_active = True
+        self.logger.info(
+            f"📼 Recording buffer activado: {recording_buffer.num_buffers} slots"
+        )
+
+    def detach_recording_buffer(self):
+        """
+        Detiene la escritura en recording_buffer.
+
+        Llamar cuando el grabador termina (por tiempo, tamaño o stop manual)
+        pero la captura en vivo sigue activa. Sin esto el processor llena
+        el buffer indefinidamente causando overflow continuo a plena velocidad.
+
+        También se llama al inicio de captura (antes de grabar) para evitar
+        overflow mientras no hay grabador activo.
+
+        Thread-safe: asignación atómica en CPython.
+        """
+        self.recording_active = False
+        self.logger.info("📼 Recording buffer desactivado en processor")
 
     def stop(self):
         """
         Detiene el procesamiento.
-
-        CORRECCIÓN 6: timeout aumentado a 4000ms para cubrir el peor caso
-        de hardware bloqueado en sync_rx (timeout BladeRF = 3500ms).
+        CORRECCIÓN 6: timeout 4000ms cubre BladeRF sync_rx timeout (3500ms).
         """
         self._stop_flag = True
         if not self.wait(4000):
@@ -214,20 +264,53 @@ class IQProcessorZeroCopy(QThread):
         self.logger.info("⏹️ IQProcessorZeroCopy detenido")
 
     # -----------------------------------------------------------------------
+    # PRIVADOS — ESCRITURA EN BUFFERS
+    # -----------------------------------------------------------------------
+    def _write_to_recording(self, rec_buffer):
+        """
+        Escribe raw_buffer convertido a complex64 en rec_buffer.
+        Ruta dedicada para grabación — sin mezclar con la lógica de viz.
+        """
+        try:
+            n        = min(len(rec_buffer), self.samples_per_block)
+            samples  = self.int16_view[:n * 2]
+            iq_pairs = samples.reshape(-1, 2)
+            k        = min(n, iq_pairs.shape[0])
+
+            rec_buffer[:k].real = iq_pairs[:k, 0].astype(np.float32) / 2048.0
+            rec_buffer[:k].imag = iq_pairs[:k, 1].astype(np.float32) / 2048.0
+
+        except Exception as exc:
+            self.logger.error(f"Error escribiendo en recording buffer: {exc}")
+            rec_buffer.fill(0)
+
+    def _write_to_viz(self, viz_buffer):
+        """
+        Escribe raw_buffer convertido a complex64 en viz_buffer.
+        Ruta dedicada para visualización.
+        """
+        try:
+            n        = min(len(viz_buffer), self.samples_per_block)
+            samples  = self.int16_view[:n * 2]
+            iq_pairs = samples.reshape(-1, 2)
+            k        = min(n, iq_pairs.shape[0])
+
+            viz_buffer[:k].real = iq_pairs[:k, 0].astype(np.float32) / 2048.0
+            viz_buffer[:k].imag = iq_pairs[:k, 1].astype(np.float32) / 2048.0
+
+        except Exception as exc:
+            self.logger.error(f"Error escribiendo en viz buffer: {exc}")
+            viz_buffer.fill(0)
+
+    # -----------------------------------------------------------------------
     # PRIVADOS — THROTTLING Y CONTROL DE FLUJO
     # -----------------------------------------------------------------------
     def _apply_throttling(self):
-        """Duerme lo necesario para mantener el FPS objetivo."""
-        elapsed    = time.time() - self.last_block_time
-        sleep_time = self.expected_interval - elapsed
-
-        if sleep_time > 0:
-            self.msleep(int(sleep_time * 1000))
-            # CORRECCIÓN 5: el contador solo se incrementa cuando
-            # efectivamente se durmió (frame que tuvo que esperar).
-            self.stats['throttle_skips'] += 1
-
-        self.last_block_time = time.time()
+        """
+        Método conservado para compatibilidad.
+        En v3 el throttle es un gate de tiempo en run(), no un msleep().
+        """
+        pass
 
     def _ensure_streaming(self):
         """Activa el stream del hardware si no está ya activo."""
@@ -238,10 +321,7 @@ class IQProcessorZeroCopy(QThread):
                 self.logger.error(f"Error activando stream: {exc}")
 
     def _get_recording_buffer(self):
-        """Obtiene slot de escritura de grabación si hay buffer activo."""
-        if not self.recording_buffer:
-            return None
-
+        """Obtiene slot de escritura de grabación."""
         rec = self.recording_buffer.get_write_buffer()
         if rec is None:
             self.stats['recording_overflow'] += 1
@@ -251,40 +331,26 @@ class IQProcessorZeroCopy(QThread):
                 )
         return rec
 
-    def _handle_buffer_full(self):
-        """Descarta el bloque actual cuando el ring buffer de viz está lleno."""
-        self.stats['overflow_skips']        += 1
-        self.stats['write_buffer_failures'] += 1
-        self._read_and_discard()
-
     def _release_viz_buffer_on_error(self):
         """
         Libera el slot de visualización cuando la lectura del hardware falla.
-
-        CORRECCIÓN 1: el ring buffer marca el slot como BUFFER_FILLING en
-        get_write_buffer(). Si no llamamos commit_write() ni release, ese
-        slot queda bloqueado para siempre. Aquí lo restauramos a FREE.
-        IQRingBuffer no expone release_write directamente, así que usamos
-        la secuencia interna equivalente a deshacer el get_write_buffer.
+        CORRECCIÓN 1: evita que el slot quede atascado en BUFFER_FILLING.
         """
         try:
             wb = self.ring_buffer
             with wb.lock:
-                # Revertir el slot actual a FREE si está en FILLING
                 idx = (wb.write_index - 1) % wb.num_buffers
                 if wb.buffer_states[idx] == wb.BUFFER_FILLING:
                     wb.buffer_states[idx] = wb.BUFFER_FREE
-                    # Retroceder write_index para que el próximo
-                    # get_write_buffer() pueda reusar este slot.
                     wb.write_index = idx
         except Exception as exc:
             self.logger.debug(f"_release_viz_buffer_on_error: {exc}")
 
     def _update_stats(self):
         """Actualiza estadísticas y emite señal cada 100 bloques."""
-        self.blocks_processed              += 1
-        self.stats['blocks_received']      += 1
-        self.stats['bytes_received']       += self.bytes_per_block
+        self.blocks_processed         += 1
+        self.stats['blocks_received'] += 1
+        self.stats['bytes_received']  += self.bytes_per_block
 
         if self.stats['blocks_received'] % 100 == 0:
             self.stats_updated.emit(self.stats.copy())
@@ -302,25 +368,16 @@ class IQProcessorZeroCopy(QThread):
     # -----------------------------------------------------------------------
     def _rebuild_raw_buffer(self, size: int):
         """
-        Crea (o recrea) raw_buffer e int16_view juntos de forma atómica.
-
-        CORRECCIÓN 2: encapsular la creación garantiza que int16_view
-        siempre es una vista del raw_buffer actual. Si el tamaño del
-        bloque cambia (ej. nuevo sample rate), ambos se regeneran en
-        sincronía. Nunca puede quedar int16_view apuntando a un bytearray
-        antiguo.
+        Crea raw_buffer e int16_view juntos de forma atómica.
+        CORRECCIÓN 2: garantiza que int16_view siempre apunta al raw_buffer actual.
         """
-        self.raw_buffer  = bytearray(size)
-        self.int16_view  = np.frombuffer(self.raw_buffer, dtype=np.int16)
+        self.raw_buffer = bytearray(size)
+        self.int16_view = np.frombuffer(self.raw_buffer, dtype=np.int16)
 
     def _read_samples(self) -> bool:
         """
         Lee un bloque de muestras raw en self.raw_buffer.
-
-        CORRECCIÓN 3 y 4: usa únicamente read_samples() del contrato
-        SDRDevice. El fallback a bladerf.sdr.sync_rx() fue eliminado
-        porque rompe la abstracción de hardware y falla con cualquier
-        SDR que no sea BladeRF.
+        CORRECCIONES 3 y 4: usa únicamente read_samples() del contrato SDRDevice.
         """
         try:
             if hasattr(self.bladerf, 'read_samples'):
@@ -339,9 +396,7 @@ class IQProcessorZeroCopy(QThread):
     def _read_and_discard(self):
         """
         Lee y descarta un bloque para mantener el stream limpio.
-
-        CORRECCIÓN 3: usa read_samples() del contrato, no sync_rx directo.
-        Los errores se ignoran porque esta llamada es de mantenimiento.
+        CORRECCIÓN 3: usa read_samples() del contrato.
         """
         try:
             if hasattr(self.bladerf, 'read_samples'):
@@ -350,16 +405,13 @@ class IQProcessorZeroCopy(QThread):
             pass
 
     # -----------------------------------------------------------------------
-    # PRIVADOS — CONVERSIÓN IQ
+    # PRIVADOS — CONVERSIÓN IQ (método legacy conservado)
     # -----------------------------------------------------------------------
     def _bytes_to_complex_dual(self, viz_buffer, rec_buffer):
         """
-        Convierte self.raw_buffer a complex64 y escribe en viz_buffer
-        y opcionalmente en rec_buffer, sin copias intermedias.
-
-        La normalización (/ 2048.0) asume formato SC16_Q11. Si el
-        hardware usa un formato diferente, este método debe delegarse
-        al objeto SDRDevice mediante bytes_to_complex().
+        Método conservado para compatibilidad con código externo que
+        pudiera llamarlo directamente. En v3 el loop usa _write_to_viz()
+        y _write_to_recording() por separado.
         """
         try:
             needed_samples = min(len(viz_buffer), self.samples_per_block)

@@ -5,6 +5,7 @@ import numpy as np
 import os
 import time
 import re
+import json
 from PyQt5.QtCore import QThread, pyqtSignal
 import logging
 
@@ -12,51 +13,57 @@ import logging
 class IQPlayer(QThread):
     """
     Hilo de reproducción que lee archivos IQ raw y los inyecta en el pipeline.
-    Soporta formatos: .bin (con .meta) y .sigmf-data (con .sigmf-meta)
     """
 
-    playback_started = pyqtSignal()
-    playback_paused = pyqtSignal()
-    playback_stopped = pyqtSignal()
+    playback_started  = pyqtSignal()
+    playback_paused   = pyqtSignal()
+    playback_stopped  = pyqtSignal()
     playback_finished = pyqtSignal()
-    progress_updated = pyqtSignal(float, float)
-    buffer_ready = pyqtSignal(np.ndarray)
-    error_occurred = pyqtSignal(str)
-    metadata_loaded = pyqtSignal(dict)
+    progress_updated  = pyqtSignal(float, float)
+    buffer_ready      = pyqtSignal(np.ndarray)
+    error_occurred    = pyqtSignal(str)
+    metadata_loaded   = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
 
-        self.filename = None
-        self.file = None
+        self.filename   = None
+        self.file       = None
         self.total_bytes = 0
-        self.position = 0
+        self.position   = 0
 
         self.sample_rate = 2e6
-        self.freq_mhz = 100.0
+        self.freq_mhz    = 100.0
 
         self.samples_per_buffer = 8192
-        self.bytes_per_buffer = self.samples_per_buffer * 4
+        self.bytes_per_buffer   = self.samples_per_buffer * 4
         self.speed = 1.0
-        self.loop = False
+        self.loop  = False
 
         self.is_playing = False
-        self.is_paused = False
+        self.is_paused  = False
         self._stop_flag = False
 
         self.read_buffer = bytearray(self.bytes_per_buffer)
 
         self.metadata = {
-            'frequency': 100.0,
+            'frequency':   100.0,
             'sample_rate': 2e6,
-            'duration': 0,
-            'timestamp': '',
-            'file_size_mb': 0
+            'duration':    0,
+            'timestamp':   '',
+            'file_size_mb': 0,
+            'mode':        'CONT',  # NUEVO
+            'format':      'ci16_le',
+            'filename':    ''
         }
 
         self.target_blocks_per_second = 30
         self.expected_interval = 1.0 / self.target_blocks_per_second
+        self._last_progress_emit_time = 0
+        self._progress_emit_interval = 0.033  # 33ms entre emisiones (30 fps)
+        self._last_position = 0
+        self._last_emit_position = 0
 
         self.logger.info("✅ IQPlayer creado")
 
@@ -64,163 +71,293 @@ class IQPlayer(QThread):
         self.close()
 
     # ------------------------------------------------------------------
-    # CARGA DE ARCHIVOS - DETECCIÓN AUTOMÁTICA DE FORMATO
+    # CARGA DE ARCHIVOS — DETECCIÓN AUTOMÁTICA DE FORMATO
     # ------------------------------------------------------------------
 
-    # workers/iq_player.py - Añadir soporte para leer SigMF
-
     def load_file(self, filename):
-        """Carga archivo IQ con soporte para SigMF y formato legacy"""
+        """Carga archivo IQ con soporte para SigMF y formato legacy."""
         try:
             self.filename = filename
-            
+            self.metadata['filename'] = os.path.basename(filename)
+
             # Detectar formato por extensión
-            if filename.endswith('.sigmf-data') or os.path.exists(filename.replace('.sigmf-data', '.sigmf-meta')):
+            if filename.endswith('.sigmf-data'):
                 return self._load_sigmf_file(filename)
-            elif filename.endswith('.bin') or filename.endswith('.sigmf-meta'):
-                # Si es .meta, buscar el .bin correspondiente
-                if filename.endswith('.meta'):
-                    filename = filename.replace('.meta', '.bin')
+            elif filename.endswith('.bin'):
                 return self._load_raw_file(filename)
             else:
-                # Intentar como raw
-                return self._load_raw_file(filename)
-                
+                # Intentar detectar automáticamente
+                if os.path.exists(filename.replace('.sigmf-data', '.sigmf-meta')):
+                    return self._load_sigmf_file(filename)
+                else:
+                    return self._load_raw_file(filename)
+
         except Exception as e:
             self.logger.error(f"Error cargando archivo: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
-    def _load_sigmf_file(self, filename):
-        """Carga archivo SigMF usando JSON manual (robusto)"""
+    # workers/iq_player.py
+
+    '''def _load_sigmf_file(self, filename):
+        """
+        Carga archivo SigMF con parsing completo de metadata.
+        """
         try:
-            import json
-            
-            # Buscar archivo .sigmf-meta
+            # Normalizar nombre base
             base_name = filename.replace('.sigmf-data', '')
+            data_file = base_name + '.sigmf-data'
             meta_file = base_name + '.sigmf-meta'
+
+            if not os.path.exists(data_file):
+                self.logger.error(f"❌ Archivo de datos no encontrado: {data_file}")
+                return False
+
+            # ===== LEER METADATA SIGMF =====
+            mode = 'CONT'  # Valor por defecto
+            if os.path.exists(meta_file):
+                with open(meta_file, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+                
+                # Extraer sample rate
+                if 'global' in meta and 'core:sample_rate' in meta['global']:
+                    self.sample_rate = float(meta['global']['core:sample_rate'])
+                    self.metadata['sample_rate'] = self.sample_rate
+                
+                # Extraer frecuencia
+                if 'captures' in meta and len(meta['captures']) > 0:
+                    if 'core:frequency' in meta['captures'][0]:
+                        freq_hz = float(meta['captures'][0]['core:frequency'])
+                        self.freq_mhz = freq_hz / 1e6
+                        self.metadata['frequency'] = self.freq_mhz
+                
+                # Extraer timestamp
+                if 'captures' in meta and len(meta['captures']) > 0:
+                    if 'core:datetime' in meta['captures'][0]:
+                        self.metadata['timestamp'] = meta['captures'][0]['core:datetime']
+                
+                # ===== CORRECCIÓN: Extraer modo desde annotations =====
+                mode = 'CONT'
+                if 'annotations' in meta and len(meta['annotations']) > 0:
+                    for ann in meta['annotations']:
+                        if 'core:description' in ann:
+                            desc = ann['core:description']
+                            if 'TIME' in desc or 'time' in desc:
+                                mode = 'TIME'
+                                break
+                            elif 'SIZE' in desc or 'size' in desc:
+                                mode = 'SIZE'
+                                break
+                
+                # También verificar en el nombre del archivo
+                if mode == 'CONT':
+                    if 'TIME' in base_name or 'time' in base_name:
+                        mode = 'TIME'
+                    elif 'SIZE' in base_name or 'size' in base_name:
+                        mode = 'SIZE'
+                
+                self.metadata['mode'] = mode
+                
+            else:
+                # Inferir modo desde nombre de archivo
+                if 'TIME' in base_name:
+                    mode = 'TIME'
+                elif 'SIZE' in base_name:
+                    mode = 'SIZE'
+                self.metadata['mode'] = mode
+
+            # ===== ABRIR ARCHIVO DE DATOS =====
+            self.file = open(data_file, 'rb')
+            self.file.seek(0, 2)
+            self.total_bytes = self.file.tell()
+            self.position = 0
+            self.file.seek(0)
+
+            self.metadata['file_size_mb'] = self.total_bytes / 1e6
+            self.metadata['filename'] = os.path.basename(data_file)
+
+            # ===== CALCULAR DURACIÓN REAL =====
+            real_samples = self.total_bytes / 4
+            self.metadata['duration'] = real_samples / self.sample_rate if self.sample_rate > 0 else 0
+            self.metadata['total_bytes'] = self.total_bytes
+            self.metadata['samples'] = int(real_samples)
+
+            # ===== LOG COMPLETO =====
+            self.logger.info("=" * 60)
+            self.logger.info(f"📂 Archivo SigMF cargado: {os.path.basename(data_file)}")
+            self.logger.info(f"   📊 Tamaño:     {self.total_bytes/1e6:.2f} MB")
+            self.logger.info(f"   📊 Muestras:   {real_samples/1e6:.3f}M")
+            self.logger.info(f"   📡 Frecuencia: {self.freq_mhz:.3f} MHz")
+            self.logger.info(f"   📡 Sample Rate:{self.sample_rate/1e6:.2f} MHz")
+            self.logger.info(f"   ⏱️  Duración:   {self.metadata['duration']:.3f} s")
+            self.logger.info(f"   📁 Modo:       {mode}")
+            self.logger.info("=" * 60)
+
+            # Emitir metadata inmediatamente
+            self.metadata_loaded.emit(self.metadata)
             
-            if not os.path.exists(meta_file):
-                self.logger.warning(f"⚠️ Archivo .sigmf-meta no encontrado: {meta_file}")
-                return self._load_raw_file(filename.replace('.sigmf-data', '.bin'))
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error cargando SigMF: {e}")
+            import traceback
+            traceback.print_exc()
+            return False'''
+    
+    # workers/iq_player.py
+
+    def _load_sigmf_file(self, filename):
+        """
+        Carga archivo SigMF con parsing completo de metadata.
+        """
+        try:
+            # Normalizar nombre base
+            base_name = filename.replace('.sigmf-data', '')
+            data_file = base_name + '.sigmf-data'
+            meta_file = base_name + '.sigmf-meta'
+
+            if not os.path.exists(data_file):
+                self.logger.error(f"❌ Archivo de datos no encontrado: {data_file}")
+                return False
+
+            # ===== LEER METADATA SIGMF =====
+            mode = 'CONT'
+            timestamp = ''
             
-            # Leer metadata
-            with open(meta_file, 'r', encoding='utf-8') as f:
-                meta = json.load(f)
+            if os.path.exists(meta_file):
+                with open(meta_file, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+                
+                # Extraer sample rate
+                if 'global' in meta and 'core:sample_rate' in meta['global']:
+                    self.sample_rate = float(meta['global']['core:sample_rate'])
+                    self.metadata['sample_rate'] = self.sample_rate
+                
+                # Extraer frecuencia
+                if 'captures' in meta and len(meta['captures']) > 0:
+                    if 'core:frequency' in meta['captures'][0]:
+                        freq_hz = float(meta['captures'][0]['core:frequency'])
+                        self.freq_mhz = freq_hz / 1e6
+                        self.metadata['frequency'] = self.freq_mhz
+                    
+                    # Extraer timestamp
+                    if 'core:datetime' in meta['captures'][0]:
+                        timestamp = meta['captures'][0]['core:datetime']
+                        self.metadata['timestamp'] = timestamp
+                
+                # Extraer modo desde annotations
+                if 'annotations' in meta and len(meta['annotations']) > 0:
+                    for ann in meta['annotations']:
+                        if 'core:description' in ann:
+                            desc = ann['core:description']
+                            if 'TIME' in desc:
+                                mode = 'TIME'
+                                break
+                            elif 'SIZE' in desc:
+                                mode = 'SIZE'
+                                break
+                
+                # También verificar en el nombre del archivo
+                if mode == 'CONT':
+                    if 'TIME' in base_name:
+                        mode = 'TIME'
+                    elif 'SIZE' in base_name:
+                        mode = 'SIZE'
+                
+                self.metadata['mode'] = mode
+                
+            else:
+                # Inferir modo desde nombre de archivo
+                if 'TIME' in base_name:
+                    mode = 'TIME'
+                elif 'SIZE' in base_name:
+                    mode = 'SIZE'
+                self.metadata['mode'] = mode
+
+            # ===== ABRIR ARCHIVO DE DATOS =====
+            self.file = open(data_file, 'rb')
+            self.file.seek(0, 2)
+            self.total_bytes = self.file.tell()
+            self.position = 0
+            self.file.seek(0)
+
+            self.metadata['file_size_mb'] = self.total_bytes / 1e6
+            self.metadata['filename'] = os.path.basename(data_file)
+
+            # ===== CALCULAR DURACIÓN REAL =====
+            real_samples = self.total_bytes / 4
+            self.metadata['duration'] = real_samples / self.sample_rate if self.sample_rate > 0 else 0
+            self.metadata['total_bytes'] = self.total_bytes
+            self.metadata['samples'] = int(real_samples)
+            self.metadata['timestamp'] = timestamp
+
+            # ===== LOG COMPLETO =====
+            self.logger.info("=" * 60)
+            self.logger.info(f"📂 Archivo SigMF cargado: {os.path.basename(data_file)}")
+            self.logger.info(f"   📊 Tamaño:     {self.total_bytes/1e6:.2f} MB")
+            self.logger.info(f"   📊 Muestras:   {real_samples/1e6:.3f}M")
+            self.logger.info(f"   📡 Frecuencia: {self.freq_mhz:.3f} MHz")
+            self.logger.info(f"   📡 Sample Rate:{self.sample_rate/1e6:.2f} MHz")
+            self.logger.info(f"   ⏱️  Duración:   {self.metadata['duration']:.3f} s")
+            self.logger.info(f"   📁 Modo:       {mode}")
+            self.logger.info("=" * 60)
+
+            # Emitir metadata inmediatamente
+            self.metadata_loaded.emit(self.metadata)
             
-            # Extraer sample_rate
-            if 'global' in meta and 'core:sample_rate' in meta['global']:
-                self.sample_rate = float(meta['global']['core:sample_rate'])
-                self.metadata['sample_rate'] = self.sample_rate
-                self.logger.info(f"📡 Sample Rate: {self.sample_rate/1e6:.2f} MHz")
-            
-            # Extraer frecuencia
-            if 'captures' in meta and len(meta['captures']) > 0:
-                if 'core:frequency' in meta['captures'][0]:
-                    self.freq_mhz = float(meta['captures'][0]['core:frequency']) / 1e6
-                    self.metadata['frequency'] = self.freq_mhz
-                    self.logger.info(f"📡 Frecuencia: {self.freq_mhz:.3f} MHz")
-            
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error cargando SigMF: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+        
+
+    def _load_raw_file(self, filename):
+        """
+        Carga un archivo IQ raw (.bin) con su metadata asociada (.meta).
+        CORRECCIÓN: Extrae correctamente frecuencia, sample_rate y modo.
+        """
+        try:
+            # Asegurar extensión .bin
+            if not filename.endswith('.bin'):
+                filename = filename.replace('.sigmf-data', '.bin')
+                if not os.path.exists(filename):
+                    self.logger.error(f"❌ Archivo .bin no encontrado: {filename}")
+                    return False
+
             # Abrir archivo de datos
             self.file = open(filename, 'rb')
             self.file.seek(0, 2)
             self.total_bytes = self.file.tell()
             self.position = 0
             self.file.seek(0)
-            
-            self.metadata['file_size_mb'] = self.total_bytes / 1e6
-
-
-            #self._calculate_duration()
-            # ===== CALCULAR DURACIÓN CORRECTAMENTE =====
-            # Formato: int16 IQ interleaved = 4 bytes por muestra compleja
-            samples = self.total_bytes / 4
-            self.metadata['duration'] = samples / self.sample_rate if self.sample_rate > 0 else 0
-            
-            # Si hay anotación con sample_count, usarla para verificar
-            if 'annotations' in meta and len(meta['annotations']) > 0:
-                for ann in meta['annotations']:
-                    if 'core:sample_count' in ann:
-                        ann_samples = ann['core:sample_count']
-                        self.logger.info(f"📊 Anotación sample_count: {ann_samples:,} muestras")
-                        # Usar el valor de anotación si es más preciso
-                        if ann_samples > 0:
-                            self.metadata['duration'] = ann_samples / self.sample_rate
-            
-            self.logger.info(f"📂 Archivo SigMF cargado: {filename}")
-            self.logger.info(f"   Tamaño: {self.total_bytes/1e6:.2f} MB")
-            self.logger.info(f"   Muestras: {samples/1e6:.2f}M")
-            self.logger.info(f"   Sample Rate: {self.sample_rate/1e6:.2f} MHz")
-            self.logger.info(f"   Duración: {self.metadata['duration']:.2f} s")
-
-            self.metadata_loaded.emit(self.metadata)
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Error cargando SigMF: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
-
-    
-
-    def _load_raw_file(self, filename):
-        """
-        Carga un archivo IQ raw (.bin) con su metadata asociada (.meta)
-        """
-        try:
-            # Asegurar extensión .bin
-            if not filename.endswith('.bin'):
-                filename = filename.replace('.sigmf-data', '.bin')
-
-            # Abrir archivo binario
-            self.file = open(filename, 'rb')
-            self.file.seek(0, 2)
-            self.total_bytes = self.file.tell()
-            self.position = 0
-            self.file.seek(0)
 
             self.metadata['file_size_mb'] = self.total_bytes / 1e6
 
-            # Buscar archivo de metadata (.meta)
+            # Buscar archivo .meta asociado
             meta_file = filename.replace('.bin', '.meta')
             if os.path.exists(meta_file):
                 self.logger.info(f"📄 Metadata encontrada: {os.path.basename(meta_file)}")
-                self._load_metadata(meta_file)
+                self._load_metadata_file(meta_file)
             else:
-                self.logger.info(f"⚠️ Sin archivo .meta, usando valores por defecto")
-                self._infer_sample_rate_from_filename()
+                self.logger.info("⚠️ Sin archivo .meta, usando valores por defecto")
+                self._infer_metadata_from_filename(filename)
 
-            # Calcular duración y verificar consistencia
-            self._calculate_duration()
+            # Calcular duración
+            self.metadata['duration'] = self.total_bytes / (self.sample_rate * 4) if self.sample_rate > 0 else 0
 
-            # Log de información
-            self.logger.info(f"📂 Archivo cargado: {filename}")
-            self.logger.info(f"   Tamaño: {self.total_bytes/1e6:.1f} MB")
-            self.logger.info(f"   Frecuencia: {self.metadata['frequency']} MHz")
-            self.logger.info(f"   Sample Rate: {self.metadata['sample_rate']/1e6:.1f} MHz")
-            self.logger.info(f"   Duración: {self.metadata['duration']:.2f} s")
-
-            # Verificar coherencia
-            if self.metadata['duration'] > 0 and self.total_bytes > 0:
-                actual_samples = self.total_bytes / 4
-                actual_sr = actual_samples / self.metadata['duration']
-
-                self.logger.info("=" * 60)
-                self.logger.info("🔍 VERIFICACIÓN DE COHERENCIA:")
-                self.logger.info(f"   Tamaño archivo: {self.total_bytes/1e6:.2f} MB")
-                self.logger.info(f"   Muestras (int16): {actual_samples/1e6:.2f}M")
-                self.logger.info(f"   Duración metadata: {self.metadata['duration']:.2f} s")
-                self.logger.info(f"   Sample Rate REAL: {actual_sr/1e6:.2f} MHz")
-                self.logger.info(f"   Sample Rate metadata: {self.sample_rate/1e6:.2f} MHz")
-
-                if abs(actual_sr - self.sample_rate) / max(self.sample_rate, 1) > 0.1:
-                    self.logger.warning("⚠️ INCONSISTENCIA: El sample_rate real no coincide con metadata")
-                    self.logger.warning(f"   Usando sample_rate real ({actual_sr/1e6:.2f} MHz) para reproducción correcta")
-                    self.sample_rate = actual_sr
-                    self.metadata['sample_rate'] = actual_sr
-                    self.metadata['duration'] = self.total_bytes / (self.sample_rate * 4)
-                    self.logger.info(f"   Duración recalculada: {self.metadata['duration']:.2f} s")
-                self.logger.info("=" * 60)
+            # Log completo
+            self.logger.info("=" * 60)
+            self.logger.info(f"📂 Archivo cargado: {os.path.basename(filename)}")
+            self.logger.info(f"   📊 Tamaño:        {self.total_bytes/1e6:.2f} MB")
+            self.logger.info(f"   📡 Frecuencia:    {self.freq_mhz:.3f} MHz")
+            self.logger.info(f"   📡 Sample Rate:   {self.sample_rate/1e6:.2f} MHz")
+            self.logger.info(f"   ⏱️  Duración:      {self.metadata['duration']:.3f} s")
+            self.logger.info(f"   📁 Modo:          {self.metadata.get('mode', 'CONT')}")
+            self.logger.info("=" * 60)
 
             self.metadata_loaded.emit(self.metadata)
             return True
@@ -230,32 +367,29 @@ class IQPlayer(QThread):
             import traceback
             traceback.print_exc()
             return False
+        
 
-    def _load_metadata(self, meta_file):
-        """Carga metadata del archivo .meta con manejo robusto de encoding"""
+    def _load_metadata_file(self, meta_file):
+        """
+        Carga metadata desde archivo .meta con formato legible.
+        CORRECCIÓN: Extrae correctamente frecuencia, sample_rate y modo.
+        """
         try:
-            # Intentar con diferentes encodings
             encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-16']
             content = None
-            used_encoding = None
 
             for enc in encodings:
                 try:
                     with open(meta_file, 'r', encoding=enc) as f:
                         content = f.read()
-                    used_encoding = enc
-                    self.logger.debug(f"Metadata leída con encoding: {enc}")
                     break
                 except (UnicodeDecodeError, UnicodeError):
                     continue
 
             if content is None:
-                # Último recurso: leer en modo binario e ignorar errores
                 with open(meta_file, 'rb') as f:
-                    raw = f.read()
-                    # Reemplazar bytes no válidos
-                    content = raw.decode('utf-8', errors='replace')
-                    self.logger.warning("⚠️ Metadata leída con reemplazo de caracteres")
+                    content = f.read().decode('utf-8', errors='replace')
+                self.logger.warning("⚠️ Metadata leída con reemplazo de caracteres")
 
             # Parsear línea por línea
             for line in content.splitlines():
@@ -263,55 +397,140 @@ class IQPlayer(QThread):
                 if not line or ':' not in line:
                     continue
 
-                # Dividir solo en el primer ':'
+                key, value = line.split(':', 1)
+                key = key.strip()
+                value = value.strip()
+
+                # ===== FRECUENCIA =====
+                if 'Frequency' in key:
+                    try:
+                        # Extraer número y unidad
+                        match = re.search(r'([\d\.]+)\s*(?:MHz|GHz)?', value, re.IGNORECASE)
+                        if match:
+                            freq_val = float(match.group(1))
+                            # Detectar unidad
+                            if 'GHz' in value:
+                                self.freq_mhz = freq_val * 1000
+                            else:
+                                self.freq_mhz = freq_val
+                            self.metadata['frequency'] = self.freq_mhz
+                    except (ValueError, IndexError):
+                        self.logger.warning(f"No se pudo parsear frecuencia: {value}")
+
+                # ===== SAMPLE RATE =====
+                elif 'Sample Rate' in key or 'SampleRate' in key:
+                    try:
+                        match = re.search(r'([\d\.]+)\s*(?:MHz|MSPS|kHz)?', value, re.IGNORECASE)
+                        if match:
+                            sr_val = float(match.group(1))
+                            # Detectar unidad
+                            if 'kHz' in value or 'KHz' in value:
+                                self.sample_rate = sr_val * 1e3
+                            elif 'MHz' in value or 'MSPS' in value:
+                                self.sample_rate = sr_val * 1e6
+                            else:
+                                self.sample_rate = sr_val * 1e6  # Asumir MHz por defecto
+                            self.metadata['sample_rate'] = self.sample_rate
+                    except (ValueError, IndexError):
+                        self.logger.warning(f"No se pudo parsear sample rate: {value}")
+
+                # ===== MODO =====
+                elif 'Mode' in key:
+                    self.metadata['mode'] = value
+
+                # ===== DURACIÓN =====
+                elif 'Duration' in key:
+                    try:
+                        match = re.search(r'([\d\.]+)', value)
+                        if match:
+                            self.metadata['duration'] = float(match.group(1))
+                    except (ValueError, IndexError):
+                        pass
+
+                # ===== TIMESTAMP =====
+                elif 'Timestamp' in key:
+                    self.metadata['timestamp'] = value
+
+            # Validar valores
+            if self.freq_mhz < 1 or self.freq_mhz > 6000:
+                self.logger.warning(f"⚠️ Frecuencia anormal: {self.freq_mhz} MHz, usando 100 MHz")
+                self.freq_mhz = 100.0
+                self.metadata['frequency'] = 100.0
+
+            if self.sample_rate <= 0 or self.sample_rate > 100e6:
+                self.logger.warning(f"⚠️ Sample rate anormal: {self.sample_rate/1e6:.1f} MHz, usando 2 MHz")
+                self.sample_rate = 2e6
+                self.metadata['sample_rate'] = 2e6
+
+        except Exception as e:
+            self.logger.error(f"Error cargando metadata: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _load_metadata(self, meta_file):
+        """Carga metadata del archivo .meta con manejo robusto de encoding."""
+        try:
+            encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-16']
+            content = None
+
+            for enc in encodings:
+                try:
+                    with open(meta_file, 'r', encoding=enc) as f:
+                        content = f.read()
+                    break
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+
+            if content is None:
+                with open(meta_file, 'rb') as f:
+                    content = f.read().decode('utf-8', errors='replace')
+                self.logger.warning("⚠️ Metadata leída con reemplazo de caracteres")
+
+            for line in content.splitlines():
+                line = line.strip()
+                if not line or ':' not in line:
+                    continue
+
                 parts = line.split(':', 1)
                 if len(parts) != 2:
                     continue
-                    
-                key = parts[0].strip()
+
+                key   = parts[0].strip()
                 value = parts[1].strip()
 
                 if 'Frequency' in key:
-                    # Extraer el número antes de 'MHz'
                     try:
-                        # Buscar número en el string
-                        import re
                         match = re.search(r'([\d\.]+)', value)
                         if match:
                             self.metadata['frequency'] = float(match.group(1))
                             self.freq_mhz = float(match.group(1))
-                            self.logger.debug(f"Frecuencia cargada: {self.freq_mhz} MHz")
-                    except (ValueError, IndexError) as e:
+                    except (ValueError, IndexError):
                         self.logger.warning(f"No se pudo parsear frecuencia: {value}")
-                        
+
                 elif 'Sample Rate' in key:
                     try:
-                        import re
                         match = re.search(r'([\d\.]+)', value)
                         if match:
                             sr_value = float(match.group(1))
                             self.metadata['sample_rate'] = sr_value * 1e6
                             self.sample_rate = sr_value * 1e6
-                            self.logger.debug(f"Sample Rate cargado: {sr_value} MHz")
-                    except (ValueError, IndexError) as e:
+                    except (ValueError, IndexError):
                         self.logger.warning(f"No se pudo parsear sample rate: {value}")
-                        
+
                 elif 'Duration' in key:
                     try:
-                        import re
                         match = re.search(r'([\d\.]+)', value)
                         if match:
                             self.metadata['duration'] = float(match.group(1))
-                            self.logger.debug(f"Duración cargada: {self.metadata['duration']} s")
-                    except (ValueError, IndexError) as e:
+                    except (ValueError, IndexError):
                         self.logger.warning(f"No se pudo parsear duración: {value}")
-                        
+
                 elif 'Timestamp' in key:
                     self.metadata['timestamp'] = value
 
-            # Validar que los valores sean razonables
             if self.freq_mhz < 1:
-                self.logger.warning(f"⚠️ Frecuencia anormalmente baja: {self.freq_mhz} MHz, usando valor por defecto 100 MHz")
+                self.logger.warning(
+                    f"⚠️ Frecuencia anormalmente baja: {self.freq_mhz} MHz — usando 100 MHz")
                 self.freq_mhz = 100.0
                 self.metadata['frequency'] = 100.0
 
@@ -320,50 +539,61 @@ class IQPlayer(QThread):
             import traceback
             traceback.print_exc()
 
-    def _infer_sample_rate_from_filename(self):
-        """Intenta inferir sample rate desde el nombre del archivo"""
-        if not self.filename:
-            return False
-
+    def _infer_metadata_from_filename(self, filename):
+        """
+        Infiere frecuencia, sample rate y modo desde el nombre del archivo.
+        Formato esperado: IQ_2400MHz_56MSPS_TIME10s_20260330_083456
+        """
         try:
-            match = re.search(r'(\d+)MSPS', self.filename, re.IGNORECASE)
+            basename = os.path.basename(filename)
+            
+            # ===== FRECUENCIA =====
+            match = re.search(r'(\d+)\s*MHz', basename, re.IGNORECASE)
             if match:
-                sr_msps = float(match.group(1))
-                self.sample_rate = sr_msps * 1e6
+                self.freq_mhz = float(match.group(1))
+                self.metadata['frequency'] = self.freq_mhz
+                self.logger.info(f"📡 Frecuencia inferida: {self.freq_mhz} MHz")
+            
+            # ===== SAMPLE RATE =====
+            match = re.search(r'(\d+(?:\.\d+)?)\s*MSPS', basename, re.IGNORECASE)
+            if match:
+                self.sample_rate = float(match.group(1)) * 1e6
                 self.metadata['sample_rate'] = self.sample_rate
-                self.logger.info(f"📡 Sample rate inferido del nombre: {sr_msps:.0f} MSPS")
-                return True
-
-            match = re.search(r'(\d+)M', self.filename, re.IGNORECASE)
-            if match:
-                sr_msps = float(match.group(1))
-                if sr_msps < 100:
-                    self.sample_rate = sr_msps * 1e6
-                    self.metadata['sample_rate'] = self.sample_rate
-                    self.logger.info(f"📡 Sample rate inferido del nombre: {sr_msps:.0f} MSPS")
-                    return True
-
+                self.logger.info(f"📡 Sample Rate inferido: {self.sample_rate/1e6:.1f} MSPS")
+            else:
+                match = re.search(r'(\d+(?:\.\d+)?)M', basename, re.IGNORECASE)
+                if match:
+                    sr_val = float(match.group(1))
+                    if sr_val < 100:  # MSPS razonable
+                        self.sample_rate = sr_val * 1e6
+                        self.metadata['sample_rate'] = self.sample_rate
+                        self.logger.info(f"📡 Sample Rate inferido: {self.sample_rate/1e6:.1f} MSPS")
+            
+            # ===== MODO =====
+            if 'TIME' in basename:
+                self.metadata['mode'] = 'TIME'
+            elif 'SIZE' in basename:
+                self.metadata['mode'] = 'SIZE'
+            elif 'CONT' in basename:
+                self.metadata['mode'] = 'CONT'
+            
         except Exception as e:
-            self.logger.debug(f"No se pudo inferir sample rate: {e}")
-
-        return False
+            self.logger.debug(f"No se pudo inferir metadata: {e}")
 
     def _calculate_duration(self):
-        """Calcula duración del archivo"""
+        """Calcula duración desde el tamaño real del archivo."""
         if self.sample_rate > 0 and self.total_bytes > 0:
-            calculated_duration = self.total_bytes / (self.sample_rate * 4)
-
+            calculated = self.total_bytes / (self.sample_rate * 4)
             if self.metadata['duration'] == 0:
-                self.metadata['duration'] = calculated_duration
-            else:
-                if abs(self.metadata['duration'] - calculated_duration) > 0.1:
-                    self.logger.debug(
-                        f"Duración: metadata={self.metadata['duration']:.2f}s, "
-                        f"calculada={calculated_duration:.2f}s"
-                    )
+                self.metadata['duration'] = calculated
+            elif abs(self.metadata['duration'] - calculated) > 0.1:
+                self.logger.debug(
+                    f"Duración: metadata={self.metadata['duration']:.2f}s, "
+                    f"calculada={calculated:.2f}s"
+                )
 
     # ------------------------------------------------------------------
-    # MÉTODOS DE CONTROL (sin cambios)
+    # MÉTODOS DE CONTROL
     # ------------------------------------------------------------------
 
     def configure(self, samples_per_buffer=8192, speed=1.0, loop=False):
@@ -380,10 +610,10 @@ class IQPlayer(QThread):
             self.expected_interval = 1.0 / self.target_blocks_per_second
 
             self.logger.info(f"⚙️ Configuración reproducción:")
-            self.logger.info(f"   Speed: {speed}x")
-            self.logger.info(f"   Duración archivo: {self.metadata['duration']:.1f} s")
-            self.logger.info(f"   Tiempo deseado: {desired_time:.1f} s")
-            self.logger.info(f"   Buffers/seg: {self.target_blocks_per_second:.1f}")
+            self.logger.info(f"   Speed:           {speed}x")
+            self.logger.info(f"   Duración archivo: {self.metadata['duration']:.2f} s")
+            self.logger.info(f"   Tiempo deseado:   {desired_time:.2f} s")
+            self.logger.info(f"   Buffers/seg:      {self.target_blocks_per_second:.1f}")
         else:
             self.target_blocks_per_second = 30 * speed
             self.expected_interval = 1.0 / self.target_blocks_per_second
@@ -392,9 +622,8 @@ class IQPlayer(QThread):
         if not self.file:
             self.error_occurred.emit("No hay archivo cargado")
             return
-
         self.is_playing = True
-        self.is_paused = False
+        self.is_paused  = False
         self._stop_flag = False
         self.start()
         self.playback_started.emit()
@@ -414,35 +643,89 @@ class IQPlayer(QThread):
         self._stop_flag = True
         self.is_playing = False
 
-    def seek(self, position_bytes):
+    '''def seek(self, position_bytes):
         if self.file:
-            self.position = max(0, min(position_bytes, self.total_bytes - self.bytes_per_buffer))
+            # Alinear al límite de buffer para evitar lecturas parciales
+            aligned = (position_bytes // self.bytes_per_buffer) * self.bytes_per_buffer
+            self.position = max(0, min(aligned, self.total_bytes - self.bytes_per_buffer))
             self.file.seek(self.position)
-            self.progress_updated.emit(self.position, self.total_bytes)
+            self.progress_updated.emit(self.position, self.total_bytes)'''
 
 
+    def seek(self, position_bytes):
+        """
+        Salta a una posición específica en el archivo.
+        Mejorado para manejar pausa y estados.
+        
+        Args:
+            position_bytes: Posición en bytes (debe estar alineada a buffer)
+        """
+        if self.file is None:
+            self.logger.warning("⚠️ No se puede hacer seek: archivo no cargado")
+            return
+        
+        # Alinear al límite de buffer
+        aligned = (position_bytes // self.bytes_per_buffer) * self.bytes_per_buffer
+        
+        # Asegurar que no se salga del rango
+        if aligned < 0:
+            aligned = 0
+        if aligned > self.total_bytes - self.bytes_per_buffer:
+            aligned = max(0, self.total_bytes - self.bytes_per_buffer)
+        
+        # Guardar estado de reproducción para restaurar después
+        was_playing = self.is_playing and not self.is_paused
+        
+        # Si está reproduciendo, pausar temporalmente para hacer seek
+        if was_playing:
+            self.is_playing = False
+            self.is_paused = False
+            # Pequeña pausa para que el hilo se detenga
+            self.msleep(10)
+        
+        # Realizar seek
+        try:
+            self.file.seek(aligned)
+            self.position = aligned
+            
+            # Limpiar buffer de lectura
+            self.read_buffer = bytearray(self.bytes_per_buffer)
+            
+            self.logger.info(f"🎯 Seek completado a {aligned} bytes ({aligned/self.total_bytes*100:.1f}%)")
+            
+            # Emitir progreso actualizado
+            self.progress_updated.emit(float(self.position), float(self.total_bytes))
+            
+        except Exception as e:
+            self.logger.error(f"Error en seek: {e}")
+            self.error_occurred.emit(f"Error en seek: {e}")
+            return
+        
+        # Restaurar estado de reproducción si estaba reproduciendo
+        if was_playing:
+            self.is_playing = True
+            self.is_paused = False
+            self.logger.info("▶ Reproducción reanudada después de seek")
 
     def close(self):
-        """Cierra el archivo y libera memoria, incluyendo archivos temporales SigMF"""
+        """Cierra el archivo y libera recursos."""
         self._stop_flag = True
         self.wait(2000)
-        
+
         if self.file:
             self.file.close()
             self.file = None
-        
-        # Limpiar archivo temporal si existe
+
         if hasattr(self, '_temp_file_path') and self._temp_file_path:
             try:
                 os.unlink(self._temp_file_path)
-            except:
+            except Exception:
                 pass
-        
+
         self.logger.info("📂 Archivo cerrado")
 
-
     # ------------------------------------------------------------------
-    # MÉTODOS DE REPRODUCCIÓN
+    # REPRODUCCIÓN
     # ------------------------------------------------------------------
 
     def run(self):
@@ -450,7 +733,7 @@ class IQPlayer(QThread):
 
         last_block_time = time.time()
         blocks_sent = 0
-        start_time = time.time()
+        start_time  = time.time()
 
         try:
             while not self._stop_flag and self.is_playing:
@@ -469,14 +752,23 @@ class IQPlayer(QThread):
                 last_block_time = time.time()
 
                 iq_data = self._read_next_buffer()
-
                 if iq_data is None:
                     self.logger.info(f"🏁 Fin del archivo después de {blocks_sent} buffers")
                     break
 
                 blocks_sent += 1
                 self.buffer_ready.emit(iq_data)
-                self.progress_updated.emit(float(self.position), float(self.total_bytes))
+
+                # ===== PROGRESO MEJORADO: emitir más frecuentemente =====
+                now = time.time()
+
+                self._last_position = self.position
+                
+                # Emitir si pasó el intervalo o si es el último buffer
+                if (now - self._last_progress_emit_time) >= self._progress_emit_interval:
+                    self.progress_updated.emit(float(self.position), float(self.total_bytes))
+                    self._last_progress_emit_time = now
+                    self._last_emit_position = self.position
 
         except Exception as e:
             self.logger.error(f"Error en reproducción: {e}")
@@ -492,7 +784,8 @@ class IQPlayer(QThread):
             self.playback_stopped.emit()
 
             elapsed_total = time.time() - start_time
-            self.logger.info(f"⏹ Hilo detenido ({blocks_sent} buffers, {elapsed_total:.1f}s)")
+            self.logger.info(
+                f"⏹ Hilo detenido ({blocks_sent} buffers, {elapsed_total:.2f}s)")
 
     def _read_next_buffer(self):
         try:
@@ -509,6 +802,7 @@ class IQPlayer(QThread):
             self.read_buffer = self.file.read(bytes_to_read)
             self.position += len(self.read_buffer)
 
+            # Rellenar con ceros si el último bloque está incompleto
             if len(self.read_buffer) < self.bytes_per_buffer:
                 self.read_buffer += b'\x00' * (self.bytes_per_buffer - len(self.read_buffer))
 

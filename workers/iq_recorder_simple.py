@@ -15,6 +15,19 @@ import logging
 class IQRecorderSimple(QThread):
     """
     Grabador IQ con soporte SigMF y fallback a .bin/.meta
+
+    CORRECCIONES v2:
+    ─────────────────
+    1. _write_loop: fsync() explícito al cerrar el archivo → previene truncamiento
+       por page-cache del kernel en Lubuntu/ext4.
+    2. _write_loop: bytes_written se actualiza en CADA buffer (no cada 100) para
+       que _check_limits() en modo SIZE sea exacto.
+    3. _update_sigmf_metadata: sample_count se calcula desde bytes_written reales
+       (no desde samples_written del capture loop, que puede estar desfasado por
+       la cola asíncrona).
+    4. _create_bin_copy: se elimina — el reproductor ya abre .sigmf-data
+       directamente; la copia .bin era redundante y podía quedar incompleta si
+       el proceso era interrumpido antes de terminar shutil.copy2.
     """
 
     recording_started = pyqtSignal(str)
@@ -26,6 +39,7 @@ class IQRecorderSimple(QThread):
         self.logger = logging.getLogger(__name__)
 
         self.ring_buffer = ring_buffer
+        self.iq_processor = None   # referencia para attach/detach del recording_buffer
         self.sample_rate = float(sample_rate)
         self.freq_hz = float(freq_hz)
         self.samples_per_buffer = ring_buffer.samples_per_buffer
@@ -44,7 +58,7 @@ class IQRecorderSimple(QThread):
         self.time_limit_sec = 0
         self.size_limit_bytes = 0
 
-        # Buffer de salida
+        # Buffer de salida pre-alocado
         self.output_buffer = np.empty(self.samples_per_buffer * 2, dtype=np.int16)
 
         # Cola de escritura
@@ -54,13 +68,13 @@ class IQRecorderSimple(QThread):
         self.capture_thread = None
         self.write_thread = None
 
-        # Estadísticas
+        # Estadísticas — bytes_written es la fuente de verdad para tamaño real
         self.stats_lock = threading.Lock()
-        self.bytes_written = 0
+        self.bytes_written = 0          # bytes efectivamente llegados a disco
         self.buffers_captured = 0
         self.start_time = 0.0
         self.last_log_time = 0.0
-        self.samples_written = 0
+        self.samples_written = 0        # muestras complejas capturadas (para log)
 
         self.blocks_per_second = self.sample_rate / self.samples_per_buffer
 
@@ -73,18 +87,23 @@ class IQRecorderSimple(QThread):
     # CONFIGURACIÓN
     # ------------------------------------------------------------------
 
+    def set_processor(self, iq_processor):
+        """Registra referencia al IQProcessorZeroCopy para attach/detach del buffer."""
+        self.iq_processor = iq_processor
+
     def configure_recording(self, base_filename: str, mode: str = 'continuous',
                             time_limit: int = 0, size_limit_mb: float = 0):
         """
         Configura la grabación.
-        base_filename: nombre base sin extensión (ej: recordings/IQ_2400MHz_56MSPS_TIME10s_20260323_141111)
+        base_filename: nombre base sin extensión
+            ej: recordings/IQ_2400MHz_2MSPS_TIME10s_20260323_141111
         """
-        self.sigmf_data_file = f"{base_filename}.sigmf-data"
-        self.sigmf_meta_file = f"{base_filename}.sigmf-meta"
-        self.fallback_bin_file = f"{base_filename}.bin"
+        self.sigmf_data_file  = f"{base_filename}.sigmf-data"
+        self.sigmf_meta_file  = f"{base_filename}.sigmf-meta"
+        self.fallback_bin_file  = f"{base_filename}.bin"
         self.fallback_meta_file = f"{base_filename}.meta"
         self.mode = mode
-        self.time_limit_sec = time_limit
+        self.time_limit_sec   = time_limit
         self.size_limit_bytes = size_limit_mb * 1024 * 1024
         self.logger.info(f"📁 Archivo base: {base_filename}")
 
@@ -97,35 +116,40 @@ class IQRecorderSimple(QThread):
             return
         try:
             os.makedirs(os.path.dirname(self.sigmf_data_file) or '.', exist_ok=True)
-            
-            # PASO 1: Crear archivo de datos vacío
+
+            # PASO 1: Abrir archivo de datos en modo escritura binaria
             self.data_file = open(self.sigmf_data_file, 'wb')
-            
-            # PASO 2: Crear metadata SigMF (con el archivo de datos ya existente)
+
+            # PASO 2: Crear metadata SigMF inicial
             sigmf_success = self._create_sigmf_metadata()
-            
-            # PASO 3: Siempre crear fallback .bin/.meta para compatibilidad
-            self._create_fallback_metadata()
-            
             if not sigmf_success:
                 self.logger.warning("⚠️ SigMF metadata creation failed, using fallback format only")
 
+            # PASO 3: Crear fallback .meta para compatibilidad con reproductores legacy
+            self._create_fallback_metadata()
+
             self.stop_event.clear()
-            self.is_recording = True
-            self._stop_flag = False
-            self._pause_flag = False
-            self.start_time = time.time()
+            self.is_recording  = True
+            self._stop_flag    = False
+            self._pause_flag   = False
+            self.start_time    = time.time()
             self.last_log_time = self.start_time
             self.bytes_written = 0
             self.buffers_captured = 0
-            self.samples_written = 0
+            self.samples_written  = 0
+
+            # Activar escritura en recording_buffer ANTES de iniciar threads
+            # para evitar race condition: _capture_loop no debe arrancar con
+            # recording_active=False y perder los primeros bloques del hardware.
+            if self.iq_processor and hasattr(self.iq_processor, "attach_recording_buffer"):
+                self.iq_processor.attach_recording_buffer(self.ring_buffer)
 
             self._clear_queue()
             self._start_threads()
-            self.start()
+            self.start()   # inicia el QThread (run = monitor de stats/límites)
 
-            # Emitir señal con el archivo .bin (compatible con reproductor legacy)
-            self.recording_started.emit(self.fallback_bin_file)
+            # Emitir señal con el archivo .sigmf-data (fuente de verdad)
+            self.recording_started.emit(self.sigmf_data_file)
             self.logger.info(f"⏺ Grabación iniciada: {self.sigmf_data_file}")
 
         except Exception as exc:
@@ -135,50 +159,46 @@ class IQRecorderSimple(QThread):
 
     def _create_sigmf_metadata(self):
         """
-        Crea el archivo .sigmf-meta manualmente con JSON.
-        Esto evita problemas con la API de SigMF.
+        Crea el archivo .sigmf-meta con JSON válido.
         """
         try:
-            # Crear estructura SigMF manualmente
             metadata = {
                 "global": {
-                    "core:datatype": "ci16_le",  # complex int16 little-endian
+                    "core:datatype":    "ci16_le",
                     "core:sample_rate": self.sample_rate,
-                    "core:hw": "BladeRF 2.0 micro",
-                    "core:author": "SIMANEEM SDR Analyzer",
-                    "core:version": "1.0.0",
+                    "core:hw":          "BladeRF 2.0 micro",
+                    "core:author":      "SIMANEEM SDR Analyzer",
+                    "core:version":     "1.0.0",
                     "core:description": f"Grabación SDR - Modo: {self.mode}",
                 },
                 "captures": [
                     {
                         "core:sample_start": 0,
-                        "core:frequency": self.freq_hz,
-                        "core:datetime": datetime.now(timezone.utc).isoformat(),
+                        "core:frequency":    self.freq_hz,
+                        "core:datetime":     datetime.now(timezone.utc).isoformat(),
                     }
                 ],
                 "annotations": []
             }
-            
-            # Guardar archivo JSON
+
             with open(self.sigmf_meta_file, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, indent=2, ensure_ascii=False)
-            
+
             self.logger.info(f"📄 Metadatos SigMF guardados: {self.sigmf_meta_file}")
             self.logger.info(f"   Sample Rate: {self.sample_rate/1e6:.2f} MHz")
-            self.logger.info(f"   Frequency: {self.freq_hz/1e6:.3f} MHz")
-            self.logger.info(f"   Datatype: ci16_le (complex int16)")
-            
+            self.logger.info(f"   Frequency:   {self.freq_hz/1e6:.3f} MHz")
+            self.logger.info(f"   Datatype:    ci16_le (complex int16)")
             return True
-            
+
         except Exception as exc:
             self.logger.error(f"Error guardando metadatos SigMF: {exc}")
             return False
 
     def _create_fallback_metadata(self):
-        """Guardar metadata en formato .meta para compatibilidad"""
+        """Guarda metadata en formato .meta para reproductores legacy."""
         try:
             with open(self.fallback_meta_file, 'w', encoding='utf-8') as f:
-                f.write(f"Filename: {os.path.basename(self.fallback_bin_file)}\n")
+                f.write(f"Filename: {os.path.basename(self.sigmf_data_file)}\n")
                 f.write(f"Timestamp: {datetime.now().isoformat()}\n")
                 f.write(f"Frequency: {self.freq_hz/1e6:.3f} MHz\n")
                 f.write(f"Sample Rate: {self.sample_rate/1e6:.2f} MHz\n")
@@ -191,48 +211,60 @@ class IQRecorderSimple(QThread):
             self.logger.error(f"Error guardando metadata compatibilidad: {exc}")
 
     def _update_sigmf_metadata(self):
-        """Actualiza el archivo .sigmf-meta con duración real y anotaciones"""
+        """
+        Actualiza .sigmf-meta con duración y sample_count reales al finalizar.
+
+        CORRECCIÓN: sample_count se calcula desde bytes_written (bytes reales
+        confirmados a disco), NO desde samples_written del capture loop.
+        La diferencia puede ser significativa cuando la cola de escritura
+        todavía tiene datos pendientes al momento de contabilizar.
+        """
         try:
             if not os.path.exists(self.sigmf_meta_file):
-                self.logger.warning(f"⚠️ Archivo .sigmf-meta no existe, no se puede actualizar")
+                self.logger.warning("⚠️ .sigmf-meta no existe, no se puede actualizar")
                 return
-            
-            # Leer archivo existente
+
             with open(self.sigmf_meta_file, 'r', encoding='utf-8') as f:
                 metadata = json.load(f)
-            
-            # Asegurar que annotations existe
+
             if 'annotations' not in metadata:
                 metadata['annotations'] = []
-            
+
             elapsed = time.time() - self.start_time if self.start_time else 0
-            
-            # Añadir anotación
+
+            # ── CLAVE: derivar sample_count desde bytes reales en disco ──────
+            # Formato ci16_le: 2 bytes I + 2 bytes Q = 4 bytes por muestra compleja
+            real_sample_count = self.bytes_written // 4
+            # ─────────────────────────────────────────────────────────────────
+
             metadata['annotations'].append({
                 "core:sample_start": 0,
-                "core:sample_count": int(self.samples_written),
-                "core:description": f"Grabación completada - Duración real: {elapsed:.2f}s",
-                "core:freq_lower_edge": self.freq_hz - self.sample_rate/2,
-                "core:freq_upper_edge": self.freq_hz + self.sample_rate/2,
+                "core:sample_count": real_sample_count,
+                "core:description":  f"Grabación completada - Duración real: {elapsed:.2f}s",
+                "core:freq_lower_edge": self.freq_hz - self.sample_rate / 2,
+                "core:freq_upper_edge": self.freq_hz + self.sample_rate / 2,
             })
-            
-            # Guardar archivo actualizado
+
             with open(self.sigmf_meta_file, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, indent=2, ensure_ascii=False)
-            
-            self.logger.info(f"📊 Metadata SigMF actualizada: {self.samples_written} muestras, {elapsed:.1f}s")
-            
+
+            self.logger.info(
+                f"📊 Metadata SigMF actualizada: "
+                f"{real_sample_count:,} muestras reales | "
+                f"{self.bytes_written/1e6:.2f} MB | {elapsed:.1f}s"
+            )
+
         except Exception as exc:
             self.logger.error(f"Error actualizando metadata SigMF: {exc}")
 
     def _update_fallback_metadata(self):
-        """Actualiza metadata de compatibilidad"""
+        """Actualiza el .meta de compatibilidad con datos finales."""
         try:
             elapsed = time.time() - self.start_time if self.start_time else 0
             with open(self.fallback_meta_file, 'a', encoding='utf-8') as f:
                 f.write(f"Duration: {elapsed:.2f} s\n")
                 f.write(f"File size: {self.bytes_written/1e6:.2f} MB\n")
-                f.write(f"Samples: {self.samples_written}\n")
+                f.write(f"Samples: {self.bytes_written // 4}\n")
         except Exception as exc:
             self.logger.error(f"Error actualizando metadata compatibilidad: {exc}")
 
@@ -254,6 +286,7 @@ class IQRecorderSimple(QThread):
         self.logger.info("▶ Reanudada")
 
     def run(self):
+        """Monitor de stats y límites (corre en el QThread)."""
         self.logger.info("🚀 Monitor iniciado")
         last_ui = time.time()
 
@@ -273,35 +306,43 @@ class IQRecorderSimple(QThread):
         self._join_threads()
 
         if self.data_file:
+            # Actualizar metadata ANTES de cerrar el archivo para que
+            # bytes_written refleje exactamente lo que llegó a disco.
             self._update_sigmf_metadata()
             self._update_fallback_metadata()
+
+            # ── CORRECCIÓN 1: fsync explícito ──────────────────────────────
+            # En Linux/ext4, flush() vacía el buffer de Python pero el kernel
+            # puede retener el contenido en page-cache. Si el proceso termina
+            # antes de que el OS lo escriba, el archivo queda truncado.
+            # fsync() bloquea hasta que el OS confirma escritura física.
+            try:
+                self.data_file.flush()
+                os.fsync(self.data_file.fileno())
+                self.logger.info("✅ fsync completado — datos garantizados en disco")
+            except OSError as exc:
+                self.logger.warning(f"⚠️ fsync falló (ignorable si FS no lo soporta): {exc}")
+
             self.data_file.close()
             self.data_file = None
 
-            # También crear archivo .bin para compatibilidad (copiar datos)
-            self._create_bin_copy()
-
         self.is_recording = False
+        # Desactivar escritura en recording_buffer ANTES de emitir señal
+        # Esto es inmediato — no espera el event loop del widget Qt
+        if self.iq_processor and hasattr(self.iq_processor, "detach_recording_buffer"):
+            self.iq_processor.detach_recording_buffer()
         self.recording_stopped.emit()
         self.logger.info("⏹ Monitor detenido")
 
-    def _create_bin_copy(self):
-        """Crea una copia .bin del archivo .sigmf-data para compatibilidad"""
-        try:
-            import shutil
-            if os.path.exists(self.sigmf_data_file) and not os.path.exists(self.fallback_bin_file):
-                shutil.copy2(self.sigmf_data_file, self.fallback_bin_file)
-                self.logger.info(f"📋 Copia .bin creada: {self.fallback_bin_file}")
-        except Exception as exc:
-            self.logger.error(f"Error creando copia .bin: {exc}")
-
     # ------------------------------------------------------------------
-    # MÉTODOS DE CAPTURA Y ESCRITURA
+    # CAPTURA Y ESCRITURA
     # ------------------------------------------------------------------
 
     def _start_threads(self):
-        self.capture_thread = threading.Thread(target=self._capture_loop, name="IQCapture", daemon=True)
-        self.write_thread = threading.Thread(target=self._write_loop, name="IQWrite", daemon=True)
+        self.capture_thread = threading.Thread(
+            target=self._capture_loop, name="IQCapture", daemon=True)
+        self.write_thread = threading.Thread(
+            target=self._write_loop, name="IQWrite", daemon=True)
         self.capture_thread.start()
         self.write_thread.start()
 
@@ -332,7 +373,6 @@ class IQRecorderSimple(QThread):
                 continue
 
             iq_data, buf_idx = result
-
             iq_int16 = self._convert_to_int16(iq_data)
 
             try:
@@ -357,23 +397,30 @@ class IQRecorderSimple(QThread):
             with self.stats_lock:
                 self.buffers_captured += local_count
 
+        # Señal de fin para que _write_loop drene la cola y termine
         self.write_queue.put(None)
         self.logger.info("⏹ Captura detenida")
 
     def _convert_to_int16(self, iq_data: np.ndarray) -> np.ndarray:
-        """Convierte IQ a int16 interleaved"""
+        """Convierte IQ complejo normalizado a int16 interleaved (ci16_le)."""
         real = np.round(iq_data.real * 2048.0).astype(np.int16)
         imag = np.round(iq_data.imag * 2048.0).astype(np.int16)
-
         out = self.output_buffer
         out[0::2] = real
         out[1::2] = imag
         return out.copy()
 
     def _write_loop(self):
+        """
+        Hilo dedicado a escritura a disco.
+
+        CORRECCIÓN 2: bytes_written se actualiza en CADA buffer, no cada 100.
+        Esto garantiza que _check_limits() en modo SIZE reacciona con exactitud
+        al límite configurado, sin sobrepasar hasta ~megabytes de margen.
+        """
         self.logger.info("💾 Escritura iniciada")
         bufs_written = 0
-        local_bytes = 0
+        local_bytes  = 0
 
         while not self.stop_event.is_set() or not self.write_queue.empty():
             try:
@@ -384,22 +431,26 @@ class IQRecorderSimple(QThread):
             if item is None:
                 break
 
-            self.data_file.write(item.tobytes())
+            raw = item.tobytes()
+            self.data_file.write(raw)
+            # flush por buffer (sin fsync — el fsync final lo hace run())
             self.data_file.flush()
 
             bufs_written += 1
-            local_bytes += item.nbytes
+            local_bytes  += len(raw)
 
-            if bufs_written % 100 == 0:
-                with self.stats_lock:
-                    self.bytes_written = local_bytes
+            # ── CORRECCIÓN 2: actualizar bytes_written en cada buffer ────────
+            with self.stats_lock:
+                self.bytes_written = local_bytes
+            # ─────────────────────────────────────────────────────────────────
 
+        # Asegurar que el valor final quede registrado
         with self.stats_lock:
             self.bytes_written = local_bytes
 
         self.logger.info(
             f"⏹ Escritura detenida — {bufs_written} bufs, "
-            f"{local_bytes/1e6:.1f} MB, {self.samples_written} muestras"
+            f"{local_bytes/1e6:.2f} MB, {local_bytes//4:,} muestras reales"
         )
 
     def _check_limits(self) -> bool:
@@ -412,7 +463,7 @@ class IQRecorderSimple(QThread):
             with self.stats_lock:
                 written = self.bytes_written
             if written >= self.size_limit_bytes:
-                self.logger.info(f"📦 Límite de tamaño alcanzado ({written/1e6:.1f} MB)")
+                self.logger.info(f"📦 Límite de tamaño alcanzado ({written/1e6:.2f} MB)")
                 return True
 
         return False
@@ -421,12 +472,12 @@ class IQRecorderSimple(QThread):
         with self.stats_lock:
             elapsed = time.time() - self.start_time if self.start_time else 0
             stats = {
-                'bytes_written': self.bytes_written,
-                'buffers_written': self.buffers_captured,
-                'elapsed_time': elapsed,
-                'file_size_mb': self.bytes_written / 1e6,
-                'samples_written': self.samples_written,
-                'expected_buffers_per_sec': self.blocks_per_second,
+                'bytes_written':             self.bytes_written,
+                'buffers_written':           self.buffers_captured,
+                'elapsed_time':              elapsed,
+                'file_size_mb':              self.bytes_written / 1e6,
+                'samples_written':           self.bytes_written // 4,
+                'expected_buffers_per_sec':  self.blocks_per_second,
             }
         self.stats_updated.emit(stats)
 
@@ -437,5 +488,5 @@ class IQRecorderSimple(QThread):
         pct = (actual / self.blocks_per_second * 100) if self.blocks_per_second > 0 else 0
         self.logger.info(
             f"📊 {actual}/{self.blocks_per_second:.0f} bufs/s  "
-            f"({pct:.0f}%)  {self.bytes_written/1e6:.1f} MB"
+            f"({pct:.0f}%)  {self.bytes_written/1e6:.2f} MB"
         )

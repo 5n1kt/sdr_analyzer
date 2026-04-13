@@ -23946,3 +23946,748 @@
 2026-03-19 11:26:35,259 - utils.config_manager - INFO - 💾 Guardando configuración...
 2026-03-19 11:26:35,275 - utils.config_manager - INFO - ✅ Configuración guardada
 2026-03-19 11:26:35,275 - __main__ - INFO - Configuración guardada al salir
+2026-04-10 11:31:27,357 - utils.theme_manager - INFO - ✅ ThemeManager inicializado (singleton, 4 temas)
+2026-04-10 11:31:27,360 - utils.theme_manager - INFO - 🎨 Tema aplicado: Oscuro Profesional
+2026-04-10 11:31:27,360 - __main__ - INFO - 📁 Directorio asegurado: recordings/
+2026-04-10 11:31:27,360 - __main__ - INFO - 📁 Directorio asegurado: profiles/
+2026-04-10 11:31:27,360 - __main__ - INFO - 📁 Directorio asegurado: logs/
+2026-04-10 11:31:27,364 - controller.base_controller - INFO - ✅ ThemeManager creado en MainController (id: 139912206509408)
+2026-04-10 11:31:27,847 - controller.detector_controller.DetectorController - INFO - ✅ DetectorController inicializado
+2026-04-10 11:31:27,847 - controller.audio_controller.AudioController - INFO - ✅ AudioController inicializado
+2026-04-10 11:31:27,847 - controller.base_controller - INFO - ✅ Subcontroladores inicializados
+2026-04-10 11:31:28,315 - widgets.visualization - INFO - ✅ Colorbar creado correctamente
+2026-04-10 11:31:28,458 - widgets.audio_widget_compact - INFO - ✅ Cargados 25 dispositivos de audio
+2026-04-10 11:31:28,458 - widgets.audio_widget_compact - INFO - ✅ AudioWidgetCompact creado
+2026-04-10 11:31:28,497 - utils.band_manager - INFO - ✅ Cargadas 21 bandas desde config/bands.json
+2026-04-10 11:31:28,497 - widgets.signal_detector_widget - INFO - ✅ ThemeManager encontrado en MainController
+2026-04-10 11:31:28,497 - widgets.signal_detector_widget - INFO - 🔗 SignalDetectorWidget conectado al theme_manager
+2026-04-10 11:31:28,499 - widgets.signal_detector_widget - INFO - 📡 Banda: FM Broadcast | Rango: 88 - 108 MHz | ✅ disponible
+2026-04-10 11:31:28,499 - widgets.signal_detector_widget - INFO -    📝 Radio FM comercial
+2026-04-10 11:31:28,499 - widgets.signal_detector_widget - INFO - ✅ SignalDetectorWidget creado
+2026-04-10 11:31:28,509 - widgets.iq_manager_widget - INFO - ✅ IQManagerWidget creado
+2026-04-10 11:31:28,527 - controller.ui_controller.UIController - INFO - 📊 Inicializando marcador en: 100.000 MHz
+2026-04-10 11:31:28,532 - controller.ui_controller.UIController - INFO - 📊 Líneas de detector creadas
+2026-04-10 11:31:28,532 - controller.ui_controller.UIController - INFO - ✅ SpectrumPlot inicializado
+2026-04-10 11:31:28,542 - widgets.waterfall_plot - INFO - ✅ WaterfallPlot inicializado
+2026-04-10 11:31:28,542 - widgets.visualization - INFO - 🌊 Waterfall conectado
+2026-04-10 11:31:28,547 - widgets.visualization - INFO - 🔗 Colorbar conectado al imageitem
+2026-04-10 11:31:28,553 - controller.ui_controller.UIController - INFO - ✅ FrequencySpinner creado: 100.000 MHz
+2026-04-10 11:31:28,553 - controller.ui_controller.UIController - INFO - ✅ Gráficos configurados
+2026-04-10 11:31:28,554 - controller.rf_controller.RFController - INFO - 🔧 Inicializando SDR: 'bladerf'...
+2026-04-10 11:31:28,555 - sdr.sdr_factory - INFO - ✅ Driver creado: BladeRFDevice ('bladerf')
+2026-04-10 11:31:28,560 - sdr.bladerf_device - INFO - Dispositivo encontrado: Device Information
+    backend  libusb
+    serial   ab00de03410c42c6b04129699a6304b5
+    usb_bus  2
+    usb_addr 3
+    instance 0
+2026-04-10 11:31:29,622 - sdr.bladerf_device - INFO - libbladeRF versión : v2.5.0 ("2.5.0-git-12699a5c")
+2026-04-10 11:31:29,622 - sdr.bladerf_device - INFO - Firmware           : v2.4.0 ("2.4.0-git-a3d5c55f")
+2026-04-10 11:31:29,622 - sdr.bladerf_device - INFO - FPGA               : v0.15.3 ("0.15.3")
+2026-04-10 11:31:29,627 - sdr.bladerf_device - INFO - Rango frecuencia   : 70 – 6000 MHz
+2026-04-10 11:31:29,627 - sdr.bladerf_device - INFO - Rango sample rate  : 0.5 – 122.9 MSPS
+2026-04-10 11:31:29,627 - sdr.bladerf_device - INFO - Rango ganancia     : -15 – 60 dB
+2026-04-10 11:31:29,627 - sdr.bladerf_device - INFO - Modos de ganancia  : ['Default', 'Manual', 'Fast AGC', 'Slow AGC', 'Hybrid']
+2026-04-10 11:31:31,169 - sdr.bladerf_device - INFO - Stream síncrono SC16_Q11 configurado
+2026-04-10 11:31:31,169 - sdr.bladerf_device - INFO - ✅ BladeRF 2.0 inicializado correctamente
+2026-04-10 11:31:31,282 - sdr.bladerf_device - INFO - Stream síncrono SC16_Q11 configurado
+2026-04-10 11:31:31,399 - sdr.bladerf_device - INFO - Stream síncrono SC16_Q11 configurado
+2026-04-10 11:31:31,399 - widgets.rf_controls - INFO - 📻 Sample rates configurados: ['2.0', '5.0', '10.0', '20.0', '40.0', '56.0']
+2026-04-10 11:31:31,399 - widgets.rf_controls - INFO - 📻 Bandwidths configurados: ['1.5', '2.5', '5.0', '10.0', '20.0', '28.0', '56.0']
+2026-04-10 11:31:31,399 - controller.rf_controller.RFController - INFO - ✅ BladeRF 2.0 micro listo para operar
+2026-04-10 11:31:31,399 - utils.config_manager - INFO - ✅ ConfigManager inicializado con theme_manager id: 139912206509408
+2026-04-10 11:31:31,405 - utils.config_manager - INFO - ✅ ConfigManager inicializado
+2026-04-10 11:31:31,405 - utils.config_manager - INFO -    Archivo: /home/ubuntu/.config/INIDETEC - DCD/SIMANEEM.conf
+2026-04-10 11:31:31,405 - utils.config_manager - INFO - 📂 Cargando configuración...
+2026-04-10 11:31:31,405 - controller.frequency_controller.FrequencyController - INFO - 🎯 Spinner cambió a: 2410.000 MHz (debounce)
+2026-04-10 11:31:31,413 - widgets.visualization - INFO - ⏱️ Reinicio automático de max/min cada 5 s
+2026-04-10 11:31:31,545 - utils.theme_manager - INFO - 🎨 Tema aplicado: Oscuro Profesional
+2026-04-10 11:31:31,545 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:31:31,545 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:31:31,545 - controller.ui_controller.UIController - INFO -    Colores originales: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-10 11:31:31,546 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-10 11:31:31,546 - controller.ui_controller.UIController - INFO -    Curva activa → #00c8ff
+2026-04-10 11:31:31,546 - controller.ui_controller.UIController - INFO -    Curva max → #ffc800
+2026-04-10 11:31:31,546 - controller.ui_controller.UIController - INFO -    Curva min → #ff6400
+2026-04-10 11:31:31,546 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:31:31,546 - utils.config_manager - INFO - ✅ Configuración cargada
+2026-04-10 11:31:31,546 - controller.base_controller - INFO - ✅ Controlador principal inicializado
+2026-04-10 11:31:31,546 - __main__ - INFO - Controller creado con theme_manager id: 139912206509408
+2026-04-10 11:31:31,546 - utils.config_manager - INFO - ✅ ConfigManager inicializado con theme_manager id: 139912206509408
+2026-04-10 11:31:31,546 - utils.config_manager - INFO - ✅ ConfigManager inicializado
+2026-04-10 11:31:31,546 - utils.config_manager - INFO -    Archivo: /home/ubuntu/.config/INIDETEC - DCD/SIMANEEM.conf
+2026-04-10 11:31:31,546 - __main__ - INFO - ConfigManager creado con theme_manager id: 139912206509408
+2026-04-10 11:31:31,546 - utils.config_manager - INFO - 📂 Cargando configuración...
+2026-04-10 11:31:31,710 - utils.theme_manager - INFO - 🎨 Tema aplicado: Oscuro Profesional
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO -    Colores originales: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO -    Curva activa → #00c8ff
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO -    Curva max → #ffc800
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO -    Curva min → #ff6400
+2026-04-10 11:31:31,710 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:31:31,710 - utils.config_manager - INFO - ✅ Configuración cargada
+2026-04-10 11:31:31,718 - __main__ - INFO - SDR Analyzer iniciado correctamente
+2026-04-10 11:31:31,730 - controller.frequency_controller.FrequencyController - INFO - 📡 Aplicando frecuencia al SDR: 2410.000 MHz
+2026-04-10 11:31:36,300 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:31:36,301 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:31:41,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:31:41,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:31:44,440 - controller.rf_controller.RFController - INFO - ✅ Imports OK
+2026-04-10 11:31:44,919 - sdr.bladerf_device - INFO - Stream síncrono SC16_Q11 configurado
+2026-04-10 11:31:44,919 - controller.rf_controller.RFController - INFO - ============================================================
+2026-04-10 11:31:44,919 - controller.rf_controller.RFController - INFO - 🚀 INICIANDO PIPELINE ZERO-COPY
+2026-04-10 11:31:44,919 - controller.rf_controller.RFController - INFO - ============================================================
+2026-04-10 11:31:44,919 - controller.rf_controller.RFController - INFO - ⚡ Sample rate alto (56 MHz) — usando buffers grandes
+2026-04-10 11:31:44,920 - workers.shared_buffer - INFO - ✅ RingBuffer creado: 24x8192 muestras
+2026-04-10 11:31:44,920 - workers.shared_buffer - INFO - 🔄 Memoria compartida creada: psm_be78fb2a (536.9 MB)
+2026-04-10 11:31:44,931 - workers.shared_buffer - INFO - ✅ RingBuffer creado: 8192x8192 muestras
+2026-04-10 11:31:44,931 - workers.shared_buffer - INFO -    Modo: MEMORIA COMPARTIDA
+2026-04-10 11:31:44,931 - widgets.iq_manager_widget - INFO - 🎤 Captura iniciada — recording buffer: 8192 slots × 8192 muestras
+2026-04-10 11:31:44,931 - workers.iq_processor_zerocopy - INFO - ✅ IQProcessorZeroCopy creado: 8192 muestras/bloque
+2026-04-10 11:31:44,931 - workers.iq_processor_zerocopy - INFO - ⚙️ Throttling: 6836 → 30 blocks/s (factor 227x)
+2026-04-10 11:31:44,931 - workers.iq_processor_zerocopy - INFO - 📼 Buffer grabación: 8192 buffers
+2026-04-10 11:31:44,931 - controller.rf_controller.RFController - INFO - ⚙️ Throttling visualización: 227x
+2026-04-10 11:31:44,935 - workers.fft_processor_zerocopy - INFO - ✅ FFTProcessorZeroCopy creado
+2026-04-10 11:31:44,935 - controller.fft_controller.FFTController - INFO - ✅ FFTProcessor de captura conectado
+2026-04-10 11:31:44,935 - controller.rf_controller.RFController - INFO - 🔊 Iniciando demodulador de audio...
+2026-04-10 11:31:44,935 - workers.iq_processor_zerocopy - INFO - 🚀 IQProcessorZeroCopy iniciado (dual buffer)
+2026-04-10 11:31:44,936 - controller.audio_controller.AudioController - INFO - 🔊 Captura iniciada, demodulador listo para activarse
+2026-04-10 11:31:44,936 - widgets.fft_controls - INFO - 🔒 Tamaño FFT bloqueado
+2026-04-10 11:31:44,936 - widgets.rf_controls - INFO - 🔒 Sample Rate y Bandwidth bloqueados
+2026-04-10 11:31:44,936 - workers.fft_processor_zerocopy - INFO - 🚀 FFTProcessorZeroCopy iniciado
+2026-04-10 11:31:44,938 - sdr.bladerf_device - INFO - Streaming iniciado
+2026-04-10 11:31:46,196 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:31:46,196 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:31:46,204 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:31:49,719 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.03
+2026-04-10 11:31:49,719 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,733 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.08
+2026-04-10 11:31:49,733 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,754 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.12
+2026-04-10 11:31:49,754 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,765 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.15
+2026-04-10 11:31:49,765 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,772 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.17
+2026-04-10 11:31:49,772 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,789 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.18
+2026-04-10 11:31:49,789 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,806 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.22
+2026-04-10 11:31:49,806 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,821 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.24
+2026-04-10 11:31:49,821 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:49,859 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.28
+2026-04-10 11:31:49,859 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,148 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.25
+2026-04-10 11:31:50,148 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,155 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.24
+2026-04-10 11:31:50,155 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,168 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.22
+2026-04-10 11:31:50,168 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,185 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.19
+2026-04-10 11:31:50,185 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,196 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.16
+2026-04-10 11:31:50,196 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,204 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.12
+2026-04-10 11:31:50,204 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,210 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.10
+2026-04-10 11:31:50,210 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,222 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.03
+2026-04-10 11:31:50,222 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:50,238 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:31:50,238 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:31:51,195 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:31:51,195 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:31:51,259 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:31:56,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:31:56,193 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:31:56,199 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:31:57,788 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:32:00,213 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:00,213 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:01,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:01,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:01,200 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:03,154 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:03,154 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:03,154 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:03,154 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:03,154 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:03,154 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:03,154 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:03,164 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:03,166 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:03,166 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:03,244 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:03,245 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:03,245 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:03,245 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:03,245 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:03,245 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:03,245 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:03,250 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:03,250 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:03,250 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:05,717 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:05,717 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:05,717 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:05,717 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:05,718 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:05,718 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:05,718 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:05,722 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:05,723 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:05,723 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:05,814 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:05,814 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:05,814 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:05,814 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:05,814 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:05,814 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:05,815 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:05,820 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:05,821 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:05,821 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:05,854 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:05,855 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:05,855 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:05,855 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:05,855 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:05,855 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:05,855 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:05,869 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:05,869 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:05,869 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:06,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:06,199 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:06,217 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:07,918 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:07,918 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:07,918 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:07,918 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:07,918 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:07,918 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:07,918 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:07,922 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:07,923 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:07,923 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:08,013 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:08,013 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:08,013 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:08,013 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:08,014 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:08,014 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:08,014 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:08,019 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:08,019 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:08,019 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:08,115 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:08,115 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-10 11:32:08,115 - controller.ui_controller.UIController - INFO -    Colores originales: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:08,115 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#208f8b, max=#fde724, min=#8802a8
+2026-04-10 11:32:08,115 - controller.ui_controller.UIController - INFO -    Curva activa → #208f8b
+2026-04-10 11:32:08,115 - controller.ui_controller.UIController - INFO -    Curva max → #fde724
+2026-04-10 11:32:08,115 - controller.ui_controller.UIController - INFO -    Curva min → #8802a8
+2026-04-10 11:32:08,120 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-10 11:32:08,120 - controller.ui_controller.UIController - INFO - 📊 Persistencia: 0.01
+2026-04-10 11:32:08,120 - controller.ui_controller.UIController - INFO - ⏱️ Modo hold: timed, cada 5 s
+2026-04-10 11:32:11,164 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:32:11,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:11,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:11,230 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:16,195 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:16,195 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:16,209 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:21,199 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:21,199 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:21,257 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:23,779 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:32:26,198 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:26,199 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:26,199 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:31,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:31,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:31,246 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:36,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:36,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:36,221 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:36,856 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:32:41,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:41,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:41,233 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:46,199 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:46,199 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:46,212 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:49,467 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:32:51,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:51,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:51,221 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:32:56,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:32:56,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:32:56,202 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:01,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:01,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:01,211 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:02,235 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:33:06,200 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:06,200 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:06,210 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:11,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:11,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:11,219 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:15,336 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:33:16,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:16,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:16,230 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:21,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:21,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:21,212 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:26,198 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:26,198 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:26,209 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:29,088 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:33:31,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:31,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:31,209 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:36,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:36,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:36,249 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:41,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:41,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:41,222 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:42,419 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:33:46,202 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:46,203 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:46,234 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:51,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:51,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:51,206 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:33:55,805 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:33:56,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:33:56,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:33:56,202 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:01,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:01,193 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:01,217 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:06,206 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:06,206 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:06,234 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:08,453 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:34:11,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:11,193 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:11,200 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:16,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:16,195 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:16,211 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:21,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:21,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:21,216 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:21,846 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:34:26,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:26,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:26,221 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:31,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:31,200 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:31,227 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:35,542 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:34:36,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:36,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:36,202 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:41,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:41,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:41,215 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:46,199 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:46,199 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:46,221 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:48,311 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:34:51,197 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:51,197 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:51,227 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:34:56,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:34:56,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:34:56,235 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:35:01,194 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:35:01,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:35:01,246 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:35:01,478 - controller.fft_controller.FFTController - INFO - 📊 Eje X: 2382.0 – 2438.0 MHz (SR=56.0 MHz)
+2026-04-10 11:35:06,193 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-10 11:35:06,194 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-10 11:35:06,217 - controller.fft_controller.FFTController - INFO - 🔄 Reiniciando buffers max/min
+2026-04-10 11:35:07,289 - controller.base_controller - INFO - 🔻 Cerrando aplicación...
+2026-04-10 11:35:07,289 - controller.rf_controller.RFController - INFO - ⏹️ Deteniendo FFTProcessor...
+2026-04-10 11:35:07,308 - workers.fft_processor_zerocopy - INFO - ⏹️ FFTProcessorZeroCopy detenido
+2026-04-10 11:35:07,309 - workers.fft_processor_zerocopy - INFO - ⏹️ FFTProcessorZeroCopy detenido
+2026-04-10 11:35:07,309 - controller.rf_controller.RFController - INFO - ⏹️ Deteniendo IQProcessor...
+2026-04-10 11:35:07,309 - workers.iq_processor_zerocopy - INFO - ⏹️ IQProcessorZeroCopy detenido
+2026-04-10 11:35:07,309 - workers.iq_processor_zerocopy - INFO - ⏹️ IQProcessorZeroCopy detenido
+2026-04-10 11:35:07,309 - widgets.iq_manager_widget - INFO - ⏹ Captura detenida
+2026-04-10 11:35:07,340 - workers.shared_buffer - INFO - 🗑️ Memoria compartida liberada: psm_be78fb2a
+2026-04-10 11:35:07,343 - widgets.fft_controls - INFO - 🔓 Tamaño FFT desbloqueado
+2026-04-10 11:35:07,343 - widgets.rf_controls - INFO - 🔓 Sample Rate y Bandwidth desbloqueados
+2026-04-10 11:35:07,343 - controller.rf_controller.RFController - INFO - ✅ Captura detenida
+2026-04-10 11:35:07,343 - widgets.fft_controls - INFO - 🔓 Tamaño FFT desbloqueado
+2026-04-10 11:35:07,343 - widgets.rf_controls - INFO - 🔓 Sample Rate y Bandwidth desbloqueados
+2026-04-10 11:35:07,347 - sdr.bladerf_device - INFO - BladeRF desconectado
+2026-04-10 11:35:07,347 - utils.config_manager - INFO - ✅ ConfigManager inicializado con theme_manager id: None
+2026-04-10 11:35:07,347 - utils.config_manager - INFO - ✅ ConfigManager inicializado
+2026-04-10 11:35:07,347 - utils.config_manager - INFO -    Archivo: /home/ubuntu/.config/INIDETEC - DCD/SIMANEEM.conf
+2026-04-10 11:35:07,347 - utils.config_manager - INFO - 💾 Guardando configuración...
+2026-04-10 11:35:07,352 - utils.config_manager - INFO - ✅ Configuración guardada
+2026-04-10 11:35:07,353 - controller.base_controller - INFO - ✅ Configuración guardada al cerrar
+2026-04-10 11:35:07,353 - controller.base_controller - INFO - ✅ Aplicación cerrada correctamente
+2026-04-10 11:35:07,356 - utils.config_manager - INFO - 💾 Guardando configuración...
+2026-04-10 11:35:07,365 - utils.config_manager - INFO - ✅ Configuración guardada
+2026-04-10 11:35:07,366 - __main__ - INFO - Configuración guardada al salir
+2026-04-13 11:34:39,774 - utils.theme_manager - INFO - ✅ ThemeManager inicializado (singleton, 4 temas)
+2026-04-13 11:34:39,776 - utils.theme_manager - INFO - 🎨 Tema aplicado: Oscuro Profesional
+2026-04-13 11:34:39,777 - __main__ - INFO - 📁 Directorio asegurado: recordings/
+2026-04-13 11:34:39,777 - __main__ - INFO - 📁 Directorio asegurado: profiles/
+2026-04-13 11:34:39,777 - __main__ - INFO - 📁 Directorio asegurado: logs/
+2026-04-13 11:34:39,781 - controller.base_controller - INFO - ✅ ThemeManager creado en MainController (id: 140309138023776)
+2026-04-13 11:34:40,284 - controller.detector_controller.DetectorController - INFO - ✅ DetectorController inicializado
+2026-04-13 11:34:40,284 - controller.audio_controller.AudioController - INFO - ✅ AudioController inicializado
+2026-04-13 11:34:40,284 - controller.base_controller - INFO - ✅ Subcontroladores inicializados
+2026-04-13 11:34:40,721 - widgets.visualization - INFO - ✅ Colorbar creado correctamente
+2026-04-13 11:34:40,869 - widgets.audio_widget_compact - INFO - ✅ Cargados 25 dispositivos de audio
+2026-04-13 11:34:40,869 - widgets.audio_widget_compact - INFO - ✅ AudioWidgetCompact creado
+2026-04-13 11:34:40,908 - utils.band_manager - INFO - ✅ Cargadas 21 bandas desde config/bands.json
+2026-04-13 11:34:40,908 - widgets.signal_detector_widget - INFO - ✅ ThemeManager encontrado en MainController
+2026-04-13 11:34:40,908 - widgets.signal_detector_widget - INFO - 🔗 SignalDetectorWidget conectado al theme_manager
+2026-04-13 11:34:40,909 - widgets.signal_detector_widget - INFO - 📡 Banda: FM Broadcast | Rango: 88 - 108 MHz | ✅ disponible
+2026-04-13 11:34:40,909 - widgets.signal_detector_widget - INFO -    📝 Radio FM comercial
+2026-04-13 11:34:40,909 - widgets.signal_detector_widget - INFO - ✅ SignalDetectorWidget creado
+2026-04-13 11:34:40,921 - widgets.iq_manager_widget - INFO - ✅ IQManagerWidget creado
+2026-04-13 11:34:40,939 - controller.ui_controller.UIController - INFO - 📊 Inicializando marcador en: 100.000 MHz
+2026-04-13 11:34:40,943 - controller.ui_controller.UIController - INFO - 📊 Líneas de detector creadas
+2026-04-13 11:34:40,943 - controller.ui_controller.UIController - INFO - ✅ SpectrumPlot inicializado
+2026-04-13 11:34:40,952 - widgets.waterfall_plot - INFO - ✅ WaterfallPlot inicializado
+2026-04-13 11:34:40,953 - widgets.visualization - INFO - 🌊 Waterfall conectado
+2026-04-13 11:34:40,958 - widgets.visualization - INFO - 🔗 Colorbar conectado al imageitem
+2026-04-13 11:34:40,963 - controller.ui_controller.UIController - INFO - ✅ FrequencySpinner creado: 100.000 MHz
+2026-04-13 11:34:40,963 - controller.ui_controller.UIController - INFO - ✅ Gráficos configurados
+2026-04-13 11:34:40,964 - controller.rf_controller.RFController - INFO - 🔧 Inicializando SDR: 'bladerf'...
+2026-04-13 11:34:40,965 - sdr.sdr_factory - INFO - ✅ Driver creado: BladeRFDevice ('bladerf')
+2026-04-13 11:34:40,971 - sdr.bladerf_device - INFO - Dispositivo encontrado: Device Information
+    backend  libusb
+    serial   ab00de03410c42c6b04129699a6304b5
+    usb_bus  2
+    usb_addr 3
+    instance 0
+2026-04-13 11:34:42,043 - sdr.bladerf_device - INFO - libbladeRF versión : v2.5.0 ("2.5.0-git-12699a5c")
+2026-04-13 11:34:42,043 - sdr.bladerf_device - INFO - Firmware           : v2.4.0 ("2.4.0-git-a3d5c55f")
+2026-04-13 11:34:42,043 - sdr.bladerf_device - INFO - FPGA               : v0.15.3 ("0.15.3")
+2026-04-13 11:34:42,048 - sdr.bladerf_device - INFO - Rango frecuencia   : 70 – 6000 MHz
+2026-04-13 11:34:42,048 - sdr.bladerf_device - INFO - Rango sample rate  : 0.5 – 122.9 MSPS
+2026-04-13 11:34:42,048 - sdr.bladerf_device - INFO - Rango ganancia     : -15 – 60 dB
+2026-04-13 11:34:42,048 - sdr.bladerf_device - INFO - Modos de ganancia  : ['Default', 'Manual', 'Fast AGC', 'Slow AGC', 'Hybrid']
+2026-04-13 11:34:43,592 - sdr.bladerf_device - INFO - Stream síncrono SC16_Q11 configurado
+2026-04-13 11:34:43,592 - sdr.bladerf_device - INFO - ✅ BladeRF 2.0 inicializado correctamente
+2026-04-13 11:34:43,706 - sdr.bladerf_device - INFO - Stream síncrono SC16_Q11 configurado
+2026-04-13 11:34:43,821 - sdr.bladerf_device - INFO - Stream síncrono SC16_Q11 configurado
+2026-04-13 11:34:43,821 - widgets.rf_controls - INFO - 📻 Sample rates configurados: ['2.0', '5.0', '10.0', '20.0', '40.0', '56.0']
+2026-04-13 11:34:43,821 - widgets.rf_controls - INFO - 📻 Bandwidths configurados: ['1.5', '2.5', '5.0', '10.0', '20.0', '28.0', '56.0']
+2026-04-13 11:34:43,821 - controller.rf_controller.RFController - INFO - ✅ BladeRF 2.0 micro listo para operar
+2026-04-13 11:34:43,821 - utils.config_manager - INFO - ✅ ConfigManager inicializado con theme_manager id: 140309138023776
+2026-04-13 11:34:43,827 - utils.config_manager - INFO - ✅ ConfigManager inicializado
+2026-04-13 11:34:43,827 - utils.config_manager - INFO -    Archivo: /home/ubuntu/.config/INIDETEC - DCD/SIMANEEM.conf
+2026-04-13 11:34:43,827 - utils.config_manager - INFO - 📂 Cargando configuración...
+2026-04-13 11:34:43,827 - controller.frequency_controller.FrequencyController - INFO - 🎯 Spinner cambió a: 2410.000 MHz (debounce)
+2026-04-13 11:34:43,837 - widgets.visualization - INFO - ⏱️ Reinicio automático de max/min cada 5 s
+2026-04-13 11:34:43,967 - utils.theme_manager - INFO - 🎨 Tema aplicado: Oscuro Profesional
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO -    Colores originales: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO -    Curva activa → #00c8ff
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO -    Curva max → #ffc800
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO -    Curva min → #ff6400
+2026-04-13 11:34:43,967 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-13 11:34:43,967 - utils.config_manager - INFO - ✅ Configuración cargada
+2026-04-13 11:34:43,967 - controller.base_controller - INFO - ✅ Controlador principal inicializado
+2026-04-13 11:34:43,967 - __main__ - INFO - Controller creado con theme_manager id: 140309138023776
+2026-04-13 11:34:43,967 - utils.config_manager - INFO - ✅ ConfigManager inicializado con theme_manager id: 140309138023776
+2026-04-13 11:34:43,967 - utils.config_manager - INFO - ✅ ConfigManager inicializado
+2026-04-13 11:34:43,967 - utils.config_manager - INFO -    Archivo: /home/ubuntu/.config/INIDETEC - DCD/SIMANEEM.conf
+2026-04-13 11:34:43,967 - __main__ - INFO - ConfigManager creado con theme_manager id: 140309138023776
+2026-04-13 11:34:43,967 - utils.config_manager - INFO - 📂 Cargando configuración...
+2026-04-13 11:34:44,131 - utils.theme_manager - INFO - 🎨 Tema aplicado: Oscuro Profesional
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO - 🎨 SET_CURVE_COLORS() INICIADO
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO -    Colores originales: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO -    Colores ajustados: active=#00c8ff, max=#ffc800, min=#ff6400
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO -    Curva activa → #00c8ff
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO -    Curva max → #ffc800
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO -    Curva min → #ff6400
+2026-04-13 11:34:44,131 - controller.ui_controller.UIController - INFO - ======================================================================
+2026-04-13 11:34:44,131 - utils.config_manager - INFO - ✅ Configuración cargada
+2026-04-13 11:34:44,139 - __main__ - INFO - SDR Analyzer iniciado correctamente
+2026-04-13 11:34:44,153 - controller.frequency_controller.FrequencyController - INFO - 📡 Aplicando frecuencia al SDR: 2410.000 MHz
+2026-04-13 11:34:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:34:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:34:53,824 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:34:53,824 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:34:58,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:34:58,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:03,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:08,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:08,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:13,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:18,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:23,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:23,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:28,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:28,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:33,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:38,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:43,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:43,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:53,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:35:58,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:35:58,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:03,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:03,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:08,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:08,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:13,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:18,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:23,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:23,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:28,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:28,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:33,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:38,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:43,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:43,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:53,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:36:58,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:36:58,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:03,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:08,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:08,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:13,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:18,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:23,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:23,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:28,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:28,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:33,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:38,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:43,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:43,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:48,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:53,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:37:58,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:37:58,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:03,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:08,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:08,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:13,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:18,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:23,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:23,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:28,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:28,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:33,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:38,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:43,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:43,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:48,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:53,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:53,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:38:58,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:38:58,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:03,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:08,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:08,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:13,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:13,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:18,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:23,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:23,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:28,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:28,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:33,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:38,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:38,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:43,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:43,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:48,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:53,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:53,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:39:58,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:39:58,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:03,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:08,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:08,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:13,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:18,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:23,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:23,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:28,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:28,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:33,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:33,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:38,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:43,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:43,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:53,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:40:58,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:40:58,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:03,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:08,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:08,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:13,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:18,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:23,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:23,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:28,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:28,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:33,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:33,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:38,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:43,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:43,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:48,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:53,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:41:58,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:41:58,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:03,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:08,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:08,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:13,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:18,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:23,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:23,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:28,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:28,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:33,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:38,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:43,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:43,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:53,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:42:58,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:42:58,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:03,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:08,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:08,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:13,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:18,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:18,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:23,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:23,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:28,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:28,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:33,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:38,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:43,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:43,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:53,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:43:58,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:43:58,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:03,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:08,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:08,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:13,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:13,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:18,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:23,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:23,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:28,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:28,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:31,287 - controller.rf_controller.RFController - INFO - 📻 Actualizando RF: freq=2410.0 MHz
+2026-04-13 11:44:31,397 - sdr.bladerf_device - INFO - 📡 Frecuencia → 2410.000 MHz
+2026-04-13 11:44:33,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:38,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:43,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:43,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:48,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:53,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:53,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:44:58,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:44:58,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:03,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:03,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:08,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:08,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:13,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:13,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:18,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:18,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:23,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:23,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:28,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:28,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:33,815 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:33,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:38,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:38,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:43,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:43,815 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min
+2026-04-13 11:45:48,814 - widgets.visualization - INFO - ⏱️ Reiniciando curvas max/min por tiempo
+2026-04-13 11:45:48,814 - controller.ui_controller.UIController - INFO - 🔄 Reiniciando buffers de max/min

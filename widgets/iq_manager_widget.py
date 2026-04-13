@@ -1,30 +1,6 @@
 # widgets/iq_manager_widget.py
 # -*- coding: utf-8 -*-
-#
-# CORRECCIONES
-# ──────────────────────────────────────────────────────────────────────────
-# BUG 2 [CRÍTICO] set_controller() no conectaba playback_requested.
-#   FIX: set_controller() conecta la señal a controller.on_playback_requested.
-#
-# BUG 3 [CRÍTICO] _on_play_play_clicked verificaba hasattr() en vez de
-#   comprobar si current_playback_file era None.
-#   FIX: guarda correcta "if not self.current_playback_file".
-#
-# BUG 9 [POTENCIAL] _update_ui_from_recorder era pass.
-#   FIX: el timer de respaldo llama _emit_recording_stats() que obtiene
-#   las estadísticas del recorder directamente.
-#
-# BUG 10 [POTENCIAL] current_sample_rate actualizado directamente desde
-#   rf_controller sin actualizar current_freq.
-#   FIX: set_rf_info() es el único punto de actualización; rf_controller
-#   debe llamarlo (ver PARCHE_rf_controller_iq.txt).
-#
-# BUG 11 [LIMPIEZA] _set_default_metadata calculaba duración = size_MB/8.
-#   FIX: duración = bytes / (sample_rate × 4).
-#
-# BUG 8 [POTENCIAL] El slider de posición no se actualizaba durante
-#   la reproducción porque progress_updated emite (ratio, 1.0).
-#   FIX: conectar progress_updated al slider en _connect_player_signals().
+
 
 import os
 from datetime import datetime
@@ -56,6 +32,8 @@ class IQManagerWidget(QDockWidget):
         self.current_freq         = 100.0
         self.current_sample_rate  = 2e6
         self.current_playback_file = None   # None hasta que el usuario abra un archivo
+
+        self.pending_speed         = 1
 
         # Timer de actualización de UI de grabación (~10 Hz)
         self.ui_update_timer = QTimer()
@@ -93,6 +71,20 @@ class IQManagerWidget(QDockWidget):
         self.spinBox_play_speed.setValue(1)
         self._set_playback_ui_state(False)
 
+        # ===== NUEVO: Añadir indicador de modo =====
+        self.label_mode_indicator = QLabel("📻 MODO: LIVE")
+        self.label_mode_indicator.setStyleSheet("""
+            QLabel {
+                color: #00ff00;
+                font-weight: bold;
+                font-size: 10pt;
+                background-color: #1a1a1a;
+                padding: 4px 8px;
+                border: 1px solid #00ff00;
+                border-radius: 4px;
+            }
+        """)
+
     def _add_ram_cache_controls(self):
         if hasattr(self, 'groupBox_mode_record'):
             layout = self.groupBox_mode_record.layout()
@@ -125,6 +117,11 @@ class IQManagerWidget(QDockWidget):
         self.main_controller = controller
 
         if hasattr(controller, 'on_playback_requested'):
+            # Desconectar conexiones previas para evitar duplicados
+            try:
+                self.playback_requested.disconnect()
+            except TypeError:
+                pass  # No estaba conectada
             self.playback_requested.connect(controller.on_playback_requested)
             self.logger.info("✅ playback_requested → controller.on_playback_requested")
         else:
@@ -312,39 +309,87 @@ class IQManagerWidget(QDockWidget):
         if filename:
             self._load_playback_file(filename)
 
-    def _on_play_play_clicked(self):
+    '''def _on_play_play_clicked(self):
         """FIX BUG 3: comprueba None, no hasattr."""
         if not self.current_playback_file:
             QMessageBox.warning(self, "Error", "Primero debe abrir un archivo")
             return
         self.playback_requested.emit(self.current_playback_file, True)
-        self._set_playback_ui_playing(True)
+        self._set_playback_ui_playing(True)'''
 
-    def _on_play_pause_clicked(self):
-        player = getattr(self.main_controller, 'player', None)
-        if player is None:
+
+    def _on_play_play_clicked(self):
+        """FIX BUG 3: comprueba None, no hasattr."""
+        if not self.current_playback_file:
+            QMessageBox.warning(self, "Error", "Primero debe abrir un archivo")
             return
-        if getattr(player, 'is_paused', False):
-            player.resume_playback()
-            self.pushButton_play_pause.setText("⏸ PAUSE")
-            self.label_play_status_text.setText("REPRODUCIENDO")
+        
+        # ===== NUEVO: Aplicar velocidad pendiente =====
+        # Obtener velocidad actual del spinBox
+        current_speed = self.spinBox_play_speed.value()
+        self.pending_speed = current_speed
+        # =============================================
+        
+        self.playback_requested.emit(self.current_playback_file, True)
+        self._set_playback_ui_playing(True)
+    
+    def _on_play_pause_clicked(self):
+        """Delegar la acción de pausa/reanudación al PlaybackController."""
+        controller = self._get_main_controller()
+        if not controller:
+            return
+
+        if controller.is_playing_back:
+            player = getattr(controller, 'player', None)
+            if player and getattr(player, 'is_paused', False):
+                controller.resume_playback()
+            else:
+                controller.pause_playback()
         else:
-            player.pause_playback()
-            self.pushButton_play_pause.setText("▶ RESUME")
-            self.label_play_status_text.setText("PAUSADO")
+            self.logger.warning("No hay reproducción activa para pausar")
+
+ 
 
     def _on_play_stop_clicked(self):
-        if self.main_controller:
-            self.main_controller.stop_playback()
-        self._set_playback_ui_state(True)
+        """Detiene la reproducción de forma robusta."""
+        controller = self._get_main_controller()
+        if not controller:
+            self.logger.error("No se pudo obtener MainController para detener")
+            return
+
+        self.logger.info("⏹ Botón STOP presionado, llamando a controller.stop_playback()")
+        controller.stop_playback()
+        
+        # La UI se actualizará a través de las señales del PlaybackController
+        # Pero por si acaso, forzamos un estado visual inmediato
+        self._set_playback_ui_state(True)  # Archivo sigue cargado
         self._set_playback_ui_playing(False)
         self.horizontalSlider_play.setValue(0)
         self.playback_progress_timer.stop()
 
+    
+    
+    '''def _on_play_loop_toggled(self, checked: bool):
+        """Delegar el cambio de modo loop al PlaybackController."""
+        controller = self._get_main_controller()
+        if controller:
+            controller.set_loop_mode(checked)'''
+    
+
     def _on_play_loop_toggled(self, checked: bool):
-        player = getattr(self.main_controller, 'player', None)
-        if player:
-            player.loop = checked
+        """Cambia el modo loop."""
+        controller = self._get_main_controller()
+        if not controller:
+            return
+        
+        self.logger.info(f"🔄 Modo loop: {'activado' if checked else 'desactivado'}")
+        
+        # Si está reproduciendo, aplicar inmediatamente
+        if controller.is_playing_back and hasattr(controller, 'player') and controller.player:
+            controller.player.loop = checked
+            self.logger.info(f"✅ Loop aplicado en tiempo real")
+        else:
+            self.logger.info(f"⏳ Loop guardado para próxima reproducción")
 
     def _on_seek(self, value: int):
         """Seek al mover el slider (rango 0-1000)."""
@@ -386,6 +431,9 @@ class IQManagerWidget(QDockWidget):
             self._set_default_metadata(filename)
 
         self._set_playback_ui_state(True)
+        
+        self._update_playback_duration_estimate()
+
 
     def _load_metadata_file(self, meta_file: str):
         try:
@@ -473,3 +521,138 @@ class IQManagerWidget(QDockWidget):
             if not self.recorder.wait(3000):
                 self.recorder.stop_event.set()
         event.accept()
+
+
+    def _get_main_controller(self):
+        """Obtiene el MainController de forma robusta."""
+        if self.main_controller is not None:
+            return self.main_controller
+
+        # Si la referencia directa falló, buscar en la jerarquía de padres
+        self.logger.warning("Referencia directa a main_controller perdida. Buscando en padres...")
+        parent = self.parent()
+        while parent is not None:
+            if hasattr(parent, 'is_running') and hasattr(parent, 'playback_ctrl'):
+                self.main_controller = parent
+                self.logger.info("✅ MainController recuperado de la jerarquía de padres.")
+                return self.main_controller
+            parent = parent.parent()
+
+        self.logger.error("❌ No se pudo encontrar el MainController.")
+        return None
+    
+
+    '''def _on_speed_changed(self, value: int):
+        """Cambia la velocidad de reproducción."""
+        controller = self._get_main_controller()
+        if not controller:
+            return
+        
+        
+        if not controller.is_playing_back:
+            self.logger.info(f"⏩ Velocidad guardada para próxima reproducción: {value}x")
+            # Guardar para cuando se inicie reproducción
+            self.pending_speed = value
+            return
+        
+        if hasattr(controller, 'player') and controller.player:
+            # Convertir a float (el spinBox es int)
+            speed = float(value)
+            controller.player.speed = speed
+            
+            # Recalcular throttling en el player
+            if hasattr(controller.player, 'configure'):
+                controller.player.configure(
+                    samples_per_buffer=controller.player.samples_per_buffer,
+                    speed=speed,
+                    loop=controller.player.loop
+                )
+            
+            self.logger.info(f"⏩ Velocidad cambiada a: {speed}x")
+            
+            # Actualizar label de duración estimada
+            self._update_playback_duration_estimate()'''
+    
+    # widgets/iq_manager_widget.py
+
+    def _on_speed_changed(self, value: int):
+        """Cambia la velocidad de reproducción."""
+        controller = self._get_main_controller()
+        if not controller:
+            return
+        
+        speed = float(value)
+        self.logger.info(f"⏩ Velocidad seleccionada: {speed}x")
+        
+        # Actualizar estimación de duración
+        self._update_playback_duration_estimate()
+        
+        # Si está reproduciendo, aplicar inmediatamente
+        if controller.is_playing_back and hasattr(controller, 'player') and controller.player:
+            controller.player.speed = speed
+            
+            # Reconfigurar throttling
+            if hasattr(controller.player, 'configure'):
+                controller.player.configure(
+                    samples_per_buffer=controller.player.samples_per_buffer,
+                    speed=speed,
+                    loop=controller.player.loop
+                )
+            self.logger.info(f"✅ Velocidad aplicada en tiempo real: {speed}x")
+        else:
+            self.logger.info(f"⏳ Velocidad {speed}x guardada para próxima reproducción")
+
+    def _update_playback_duration_estimate(self):
+        """Actualiza la etiqueta de duración con la velocidad actual."""
+        if not self.current_playback_file:
+            return
+        
+        try:
+            import os
+            file_size = os.path.getsize(self.current_playback_file)
+            
+            # Obtener sample rate (del metadata o del widget)
+            sr = self.current_sample_rate
+            if sr <= 0:
+                sr = 2e6  # Fallback
+            
+            duration_sec = file_size / (sr * 4)
+            speed = self.spinBox_play_speed.value()
+            estimated_sec = duration_sec / speed
+            
+            self.label_play_duration.setText(
+                f"{duration_sec:.1f} s ({speed}x = {estimated_sec:.1f} s)"
+            )
+        except Exception as e:
+            self.logger.error(f"Error calculando duración: {e}")
+
+    # widgets/iq_manager_widget.py
+
+    def update_mode_indicator(self, mode: str):
+        """Actualiza el indicador de modo (LIVE/PLAY)."""
+        if mode == "live":
+            self.label_mode_indicator.setText("📻 MODO: LIVE")
+            self.label_mode_indicator.setStyleSheet("""
+                QLabel {
+                    color: #00ff00;
+                    font-weight: bold;
+                    font-size: 10pt;
+                    background-color: #1a1a1a;
+                    padding: 4px 8px;
+                    border: 1px solid #00ff00;
+                    border-radius: 4px;
+                }
+            """)
+        else:  # play
+            self.label_mode_indicator.setText("🎬 MODO: PLAY")
+            self.label_mode_indicator.setStyleSheet("""
+                QLabel {
+                    color: #ffaa00;
+                    font-weight: bold;
+                    font-size: 10pt;
+                    background-color: #1a1a1a;
+                    padding: 4px 8px;
+                    border: 1px solid #ffaa00;
+                    border-radius: 4px;
+                }
+            """)

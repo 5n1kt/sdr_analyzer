@@ -178,9 +178,27 @@ class MainController(QMainWindow):
         """Delegado a RF Controller"""
         return self.rf_ctrl.initialize_bladerf()
     
-    def toggle_rx(self):
+    '''def toggle_rx(self):
         """Delegado a RF Controller"""
-        self.rf_ctrl.toggle_rx()
+        self.rf_ctrl.toggle_rx()'''
+
+    # controller/base_controller.py
+
+    def toggle_rx(self):
+        """Alternar recepción, deteniendo reproducción si es necesario."""
+        # Si estamos reproduciendo, detener reproducción primero
+        if self.is_playing_back:
+            self.logger.info("🔄 Deteniendo reproducción para iniciar recepción")
+            self.playback_ctrl.stop_playback(restore_rx=True)
+            # Pequeña pausa para asegurar limpieza
+            import time
+            time.sleep(0.3)
+        
+        # Ahora alternar recepción normalmente
+        if not self.is_running:
+            self.rf_ctrl.start_rx()
+        else:
+            self.rf_ctrl.stop_rx()
     
     def start_rx(self):
         """Delegado a RF Controller"""
@@ -215,6 +233,21 @@ class MainController(QMainWindow):
     def stop_playback(self):
         """Delegado a Playback Controller"""
         self.playback_ctrl.stop_playback()
+
+    def pause_playback(self):
+        """Delegado a Playback Controller"""
+        if hasattr(self, 'playback_ctrl'):
+            self.playback_ctrl.pause_playback()
+
+    def resume_playback(self):
+        """Delegado a Playback Controller"""
+        if hasattr(self, 'playback_ctrl'):
+            self.playback_ctrl.resume_playback()
+
+    def set_loop_mode(self, enabled: bool):
+        """Delegado a Playback Controller"""
+        if hasattr(self, 'playback_ctrl'):
+            self.playback_ctrl.set_loop_mode(enabled)
     
     # ===== Frequency Methods =====
     def on_frequency_spinner_changed(self, freq_mhz):

@@ -168,6 +168,13 @@ class MainController(QMainWindow):
         self.ui_ctrl.setup_plots()
         self.ui_ctrl.setup_menu()
         self.ui_ctrl.setup_connections()
+
+        # ===== NUEVO: Conectar VisualizationWidget al controlador =====
+        if hasattr(self, 'viz_widget'):
+            self.viz_widget.set_main_controller(self)
+            self.logger.info("🔗 VisualizationWidget conectado al MainController")
+
+
     
     # -----------------------------------------------------------------------
     # MÉTODOS DELEGADOS A SUBCONTROLADORES

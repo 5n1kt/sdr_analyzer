@@ -72,9 +72,6 @@
           <property name="verticalSpacing">
            <number>4</number>
           </property>
-          <item row="0" column="1">
-           <widget class="QComboBox" name="comboBox_color_map"/>
-          </item>
           <item row="0" column="0">
            <widget class="QLabel" name="label_colormap">
             <property name="text">
@@ -82,18 +79,8 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="2">
-           <spacer name="horizontalSpacer_colormap">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="comboBox_color_map"/>
           </item>
          </layout>
         </widget>
@@ -268,6 +255,22 @@
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="groupBox">
+         <property name="title">
+          <string/>
+         </property>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="checkBox">
+            <property name="text">
+             <string>CheckBox</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="groupBox_actions">
          <property name="title">
           <string>ACCIONES</string>
@@ -297,7 +300,7 @@
              </size>
             </property>
             <property name="text">
-             <string>🔄 AUTO</string>
+             <string>AUTORANGO</string>
             </property>
            </widget>
           </item>

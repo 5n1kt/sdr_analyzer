@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>638</height>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,11 +30,15 @@
     <property name="bottomMargin">
      <number>8</number>
     </property>
+    
+    <!-- ===== PESTAÑAS PRINCIPALES ===== -->
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
+      
+      <!-- ========== PESTAÑA GRABAR ========== -->
       <widget class="QWidget" name="tab_record">
        <attribute name="title">
         <string>📼 GRABAR</string>
@@ -55,6 +59,8 @@
         <property name="bottomMargin">
          <number>6</number>
         </property>
+        
+        <!-- ===== GRUPO ESTADO ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_status_record">
           <property name="title">
@@ -76,6 +82,7 @@
            <property name="bottomMargin">
             <number>6</number>
            </property>
+           
            <item>
             <widget class="QLabel" name="label_record_status_icon">
              <property name="font">
@@ -119,6 +126,8 @@
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== GRUPO INFORMACIÓN ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_info_record">
           <property name="title">
@@ -143,6 +152,7 @@
            <property name="verticalSpacing">
             <number>4</number>
            </property>
+           
            <item row="0" column="0">
             <widget class="QLabel" name="label_record_filename_title">
              <property name="text">
@@ -160,6 +170,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="1" column="0">
             <widget class="QLabel" name="label_record_size_title">
              <property name="text">
@@ -174,6 +185,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="1" column="2">
             <widget class="QLabel" name="label_record_time">
              <property name="text">
@@ -184,6 +196,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="2" column="0">
             <widget class="QLabel" name="label_record_freq_title">
              <property name="text">
@@ -201,6 +214,8 @@
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== GRUPO MODO DE GRABACIÓN ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_mode_record">
           <property name="title">
@@ -225,6 +240,7 @@
            <property name="verticalSpacing">
             <number>4</number>
            </property>
+           
            <item row="0" column="0" colspan="2">
             <widget class="QRadioButton" name="radio_record_continuous">
              <property name="text">
@@ -235,6 +251,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="1" column="0">
             <widget class="QRadioButton" name="radio_record_time">
              <property name="text">
@@ -259,8 +276,12 @@
              <property name="value">
               <number>10</number>
              </property>
+             <property name="minimumWidth">
+              <number>80</number>
+             </property>
             </widget>
            </item>
+           
            <item row="2" column="0">
             <widget class="QRadioButton" name="radio_record_size">
              <property name="text">
@@ -285,21 +306,27 @@
              <property name="value">
               <number>100</number>
              </property>
+             <property name="minimumWidth">
+              <number>80</number>
+             </property>
             </widget>
            </item>
+           
            <item row="3" column="0" colspan="2">
             <widget class="QLabel" name="label_mode_info">
-             <property name="styleSheet">
-              <string notr="true">color: #888888; font-size: 8pt;</string>
-             </property>
              <property name="text">
               <string>Límites de grabación</string>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: #888888; font-size: 8pt;</string>
              </property>
             </widget>
            </item>
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== GRUPO CONTROLES ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_controls_record">
           <property name="title">
@@ -321,6 +348,7 @@
            <property name="bottomMargin">
             <number>6</number>
            </property>
+           
            <item>
             <widget class="QPushButton" name="pushButton_record_start">
              <property name="minimumSize">
@@ -340,6 +368,7 @@
              </property>
             </widget>
            </item>
+           
            <item>
             <widget class="QPushButton" name="pushButton_record_stop">
              <property name="enabled">
@@ -365,6 +394,8 @@
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== BOTÓN ABRIR CARPETA ===== -->
         <item>
          <widget class="QPushButton" name="pushButton_open_folder">
           <property name="minimumSize">
@@ -378,6 +409,8 @@
           </property>
          </widget>
         </item>
+        
+        <!-- ===== ESPACIADOR ===== -->
         <item>
          <spacer name="verticalSpacer_record">
           <property name="orientation">
@@ -391,8 +424,11 @@
           </property>
          </spacer>
         </item>
+        
        </layout>
       </widget>
+      
+              <!-- ========== PESTAÑA REPRODUCIR (VERSIÓN SIMPLIFICADA) ========== -->
       <widget class="QWidget" name="tab_play">
        <attribute name="title">
         <string>▶ REPRODUCIR</string>
@@ -413,6 +449,8 @@
         <property name="bottomMargin">
          <number>6</number>
         </property>
+        
+        <!-- ===== GRUPO ESTADO ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_status_play">
           <property name="title">
@@ -434,6 +472,7 @@
            <property name="bottomMargin">
             <number>6</number>
            </property>
+           
            <item>
             <widget class="QLabel" name="label_play_status_icon">
              <property name="font">
@@ -477,6 +516,8 @@
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== GRUPO ARCHIVO ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_file_play">
           <property name="title">
@@ -498,6 +539,7 @@
            <property name="bottomMargin">
             <number>6</number>
            </property>
+           
            <item>
             <widget class="QPushButton" name="pushButton_play_open">
              <property name="minimumSize">
@@ -513,39 +555,29 @@
               </font>
              </property>
              <property name="text">
-              <string>ABRIR ARCHIVO IQ</string>
+              <string>📂 ABRIR ARCHIVO IQ</string>
              </property>
             </widget>
            </item>
+           
            <item>
             <widget class="QLabel" name="label_play_filename">
-             <property name="styleSheet">
-              <string notr="true">color: #888888; font-size: 9pt;</string>
-             </property>
              <property name="text">
               <string>Sin archivo cargado</string>
              </property>
              <property name="wordWrap">
               <bool>true</bool>
              </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_play_metadata">
              <property name="styleSheet">
-              <string notr="true">color: #888888; font-size: 8pt;</string>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-             <property name="wordWrap">
-              <bool>true</bool>
+              <string notr="true">color: #888888; font-size: 9pt;</string>
              </property>
             </widget>
            </item>
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== GRUPO INFORMACIÓN ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_info_play">
           <property name="title">
@@ -570,6 +602,7 @@
            <property name="verticalSpacing">
             <number>4</number>
            </property>
+           
            <item row="0" column="0">
             <widget class="QLabel" name="label_play_freq_title">
              <property name="text">
@@ -584,6 +617,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="1" column="0">
             <widget class="QLabel" name="label_play_sr_title">
              <property name="text">
@@ -598,6 +632,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="2" column="0">
             <widget class="QLabel" name="label_play_duration_title">
              <property name="text">
@@ -612,6 +647,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="3" column="0">
             <widget class="QLabel" name="label_play_mode_title">
              <property name="text">
@@ -626,9 +662,25 @@
              </property>
             </widget>
            </item>
+           
+           <item row="4" column="0" colspan="2">
+            <widget class="QLabel" name="label_play_metadata">
+             <property name="styleSheet">
+              <string notr="true">color: #888888; font-size: 8pt;</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== GRUPO CONTROL (3 botones en línea horizontal) ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_controls_play">
           <property name="title">
@@ -650,6 +702,7 @@
            <property name="bottomMargin">
             <number>6</number>
            </property>
+           
            <item>
             <widget class="QPushButton" name="pushButton_play_play">
              <property name="enabled">
@@ -672,6 +725,7 @@
              </property>
             </widget>
            </item>
+           
            <item>
             <widget class="QPushButton" name="pushButton_play_pause">
              <property name="enabled">
@@ -694,6 +748,7 @@
              </property>
             </widget>
            </item>
+           
            <item>
             <widget class="QPushButton" name="pushButton_play_stop">
              <property name="enabled">
@@ -719,11 +774,14 @@
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== CONTROLES DE VELOCIDAD Y LOOP (sin grupo separado) ===== -->
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_speed_loop">
           <property name="spacing">
            <number>8</number>
           </property>
+          
           <item>
            <widget class="QLabel" name="label_play_speed">
             <property name="text">
@@ -731,13 +789,11 @@
             </property>
            </widget>
           </item>
+          
           <item>
            <widget class="QSpinBox" name="spinBox_play_speed">
             <property name="enabled">
              <bool>false</bool>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight</set>
             </property>
             <property name="suffix">
              <string>x</string>
@@ -751,8 +807,29 @@
             <property name="value">
              <number>1</number>
             </property>
+            <property name="minimumWidth">
+             <number>70</number>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight</set>
+            </property>
            </widget>
           </item>
+          
+          <item>
+           <spacer name="horizontalSpacer_speed_loop">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>10</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          
           <item>
            <widget class="QPushButton" name="pushButton_play_loop">
             <property name="enabled">
@@ -771,7 +848,7 @@
              </font>
             </property>
             <property name="text">
-             <string>LOOP</string>
+             <string>🔄 LOOP</string>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -780,6 +857,8 @@
           </item>
          </layout>
         </item>
+        
+        <!-- ===== GRUPO PROGRESO ===== -->
         <item>
          <widget class="QGroupBox" name="groupBox_progress_play">
           <property name="title">
@@ -804,6 +883,7 @@
            <property name="verticalSpacing">
             <number>4</number>
            </property>
+           
            <item row="0" column="0" colspan="2">
             <widget class="QSlider" name="horizontalSlider_play">
              <property name="enabled">
@@ -817,6 +897,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="1" column="0">
             <widget class="QLabel" name="label_play_position">
              <property name="text">
@@ -824,6 +905,7 @@
              </property>
             </widget>
            </item>
+           
            <item row="1" column="1">
             <widget class="QLabel" name="label_play_total">
              <property name="text">
@@ -837,6 +919,8 @@
           </layout>
          </widget>
         </item>
+        
+        <!-- ===== ESPACIADOR ===== -->
         <item>
          <spacer name="verticalSpacer_play">
           <property name="orientation">
@@ -850,6 +934,7 @@
           </property>
          </spacer>
         </item>
+        
        </layout>
       </widget>
      </widget>
@@ -859,6 +944,7 @@
  </widget>
  <tabstops>
   <tabstop>tabWidget</tabstop>
+  <!-- Grabación -->
   <tabstop>radio_record_continuous</tabstop>
   <tabstop>radio_record_time</tabstop>
   <tabstop>spinBox_record_duration</tabstop>
@@ -867,6 +953,7 @@
   <tabstop>pushButton_record_start</tabstop>
   <tabstop>pushButton_record_stop</tabstop>
   <tabstop>pushButton_open_folder</tabstop>
+  <!-- Reproducción -->
   <tabstop>pushButton_play_open</tabstop>
   <tabstop>pushButton_play_play</tabstop>
   <tabstop>pushButton_play_pause</tabstop>

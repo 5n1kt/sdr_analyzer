@@ -260,6 +260,10 @@ class VisualizationWidget(QDockWidget):
                 # Conectar señal de actualización
                 if hasattr(waterfall, 'updated'):
                     waterfall.updated.connect(self._on_waterfall_updated)
+                
+        # ===== NUEVO: Guardar referencia al controlador principal para acceder al espectro =====
+        if hasattr(self, 'main_controller'):
+            self.main_controller = None  # Se seteará después
 
 
     def on_hold_time_changed(self, index):
@@ -315,7 +319,7 @@ class VisualizationWidget(QDockWidget):
         
         return settings
     
-    def auto_range(self):
+    '''def auto_range(self):
         """Autoajusta rango de colores"""
         if hasattr(self, 'colorbar'):
             self.colorbar.autoHistogramRange()
@@ -326,12 +330,119 @@ class VisualizationWidget(QDockWidget):
         
         settings = self.get_settings()
         settings['auto_range'] = True
-        self.settings_changed.emit(settings)
+        self.settings_changed.emit(settings)'''
+
+    # widgets/visualization.py
+
+    def auto_range(self):
+        """
+        Autoajusta el rango dinámico basado en el espectro actual.
+        Encuentra el pico máximo y el piso de ruido, establece márgenes inteligentes.
+        """
+        try:
+            # Obtener el espectro actual
+            spectrum = self.get_current_spectrum()
+            
+            if spectrum is None or len(spectrum) == 0:
+                self.logger.warning("⚠️ No hay datos de espectro disponibles para auto-rango")
+                # Fallback: usar el colorbar existente
+                if hasattr(self, 'colorbar'):
+                    self.colorbar.autoHistogramRange()
+                    levels = self.colorbar.getLevels()
+                    if levels and len(levels) >= 2:
+                        self.min_spin.setValue(int(levels[0]))
+                        self.max_spin.setValue(int(levels[1]))
+                return
+            
+            # ===== ANÁLISIS DEL ESPECTRO =====
+            # Encontrar pico máximo (ignorando valores atípicos)
+            spectrum_clean = spectrum[~np.isinf(spectrum)]
+            spectrum_clean = spectrum_clean[~np.isnan(spectrum_clean)]
+            
+            if len(spectrum_clean) == 0:
+                return
+            
+            # Percentiles para evitar outliers
+            max_peak = np.percentile(spectrum_clean, 99.5)  # Pico máximo real
+            noise_floor = np.percentile(spectrum_clean, 5)   # Piso de ruido (5% más bajo)
+            
+            # ===== CÁLCULO DE NUEVOS LÍMITES =====
+            # Margen superior: pico + 5 dB (para ver clipping)
+            new_max = max_peak + 5.0
+            
+            # Margen inferior: entre piso de ruido y -10 dB por debajo
+            # Para que el ruido sea visible pero no domine
+            new_min = min(noise_floor - 5.0, max_peak - 50.0)
+            
+            # Limitar rangos razonables
+            new_min = max(-140.0, min(new_min, -50.0))  # Entre -140 y -50 dB
+            new_max = min(20.0, max(new_max, -30.0))    # Entre -30 y 20 dB
+            
+            # Asegurar rango mínimo de 30 dB para visibilidad
+            if new_max - new_min < 30:
+                new_min = new_max - 30
+            
+            self.logger.info(
+                f"📊 Auto-rango: pico={max_peak:.1f} dB, ruido={noise_floor:.1f} dB → "
+                f"rango=[{new_min:.0f}, {new_max:.0f}] dB"
+            )
+            
+            # ===== APLICAR NUEVOS LÍMITES =====
+            self.min_spin.blockSignals(True)
+            self.max_spin.blockSignals(True)
+            
+            self.min_threshold = new_min
+            self.max_threshold = new_max
+            
+            self.min_spin.setValue(int(new_min))
+            self.max_spin.setValue(int(new_max))
+            
+            self.min_spin.blockSignals(False)
+            self.max_spin.blockSignals(False)
+            
+            # Actualizar colorbar
+            if hasattr(self, 'colorbar'):
+                self.colorbar.setLevels(new_min, new_max)
+                self.colorbar.setHistogramRange(new_min, new_max)
+            
+            # Actualizar waterfall
+            if self.waterfall:
+                self.waterfall.set_display_range(new_min, new_max)
+            
+            # Actualizar colores de curvas basados en nuevo rango
+            active_color, max_color, min_color = self.get_colors_from_levels(
+                new_min, new_max
+            )
+            
+            settings = self.get_settings()
+            settings['curve_colors'] = {
+                'active': active_color,
+                'max': max_color,
+                'min': min_color
+            }
+            settings['min_threshold'] = new_min
+            settings['max_threshold'] = new_max
+            settings['auto_range'] = True
+            
+            self.settings_changed.emit(settings)
+            
+            # Mensaje en barra de estado si está disponible
+            if hasattr(self, 'main_controller') and self.main_controller:
+                self.main_controller.statusbar.showMessage(
+                    f"📊 Auto-rango: {new_min:.0f} dB a {new_max:.0f} dB (pico: {max_peak:.1f} dB)",
+                    3000
+                )
+            
+        except Exception as e:
+            self.logger.error(f"Error en auto_range: {e}")
+            import traceback
+            traceback.print_exc()
     
     def clear_persistence(self):
         """Limpia la persistencia del waterfall"""
         settings = self.get_settings()
         settings['clear_persistence'] = True
+        settings['reset_max_min'] = True
         self.settings_changed.emit(settings)
 
     def on_clear_persistence_clicked(self):
@@ -523,3 +634,18 @@ class VisualizationWidget(QDockWidget):
         """Respuesta a actualización del waterfall"""
         if hasattr(self, 'colorbar'):
             self.colorbar.autoHistogramRange()
+
+    # widgets/visualization.py
+
+    def set_main_controller(self, controller):
+        """Guarda referencia al controlador principal para acceder al espectro"""
+        self.main_controller = controller
+        self.logger.info("🔗 VisualizationWidget conectado al MainController")
+    
+    def get_current_spectrum(self):
+        """Obtiene el espectro actual del controlador"""
+        if self.main_controller and hasattr(self.main_controller, 'fft_ctrl'):
+            # Acceder al último espectro procesado
+            if hasattr(self.main_controller.fft_ctrl, '_prev_spectrum'):
+                return self.main_controller.fft_ctrl._prev_spectrum
+        return None

@@ -1,29 +1,6 @@
 # controller/fft_controller.py
 # -*- coding: utf-8 -*-
-#
-# CORRECCIONES APLICADAS
-# ──────────────────────
-# 1. [BACKPRESSURE] Integración de on_frame_consumed() del FFTProcessor.
-#    fft_data_ready se conecta a update_spectrum(), que al terminar llama
-#    fft_processor.on_frame_consumed() para notificar que el frame fue
-#    procesado. Esto activa el mecanismo anti-colas-infinitas del worker.
-#    Se aplica tanto al procesador de captura (fft_processor) como al de
-#    reproducción (playback_fft_processor), ya que ambos usan la misma clase.
-#
-#    La conexión se centraliza aquí en dos métodos:
-#      connect_fft_processor(processor)         → para captura en vivo
-#      connect_playback_fft_processor(processor) → para reproducción
-#    Así rf_controller y playback_controller ya no necesitan conectar
-#    fft_data_ready directamente.
-#
-# 2. [POTENCIAL] _periodic_log usaba np.random.randint(100) == 0 para
-#    decidir si loguear. Esto llama al generador de números aleatorios
-#    en el hilo principal 30 veces por segundo, lo cual es innecesario
-#    y no determinístico. Reemplazado por un contador modular.
-#
-# 3. [LIMPIEZA] _handle_restart accedía a fft_processor._stop_flag
-#    directamente (atributo privado). Reemplazado por is_running
-#    que es la propiedad pública equivalente.
+
 
 import logging
 import numpy as np
@@ -327,6 +304,9 @@ class FFTController:
                 center_freq - sample_rate / 2,
                 center_freq + sample_rate / 2,
             )
+        
+        if hasattr(self.main, 'spectrum_plot') and self.main.spectrum_plot.show_band_plan:
+                self.main.spectrum_plot._draw_band_regions()
 
     # ------------------------------------------------------------------
     # SLOT DE ESTADÍSTICAS

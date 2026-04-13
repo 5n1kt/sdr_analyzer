@@ -205,6 +205,9 @@ class VisualizationWidget(QDockWidget):
         self.horizontalSlider_persistence.valueChanged.connect(self.on_setting_changed)
         self.checkBox_plot_max.stateChanged.connect(self.on_setting_changed)
         self.checkBox_plot_min.stateChanged.connect(self.on_setting_changed)
+
+         # ===== NUEVO: Conectar checkbox de Band Plan =====
+        self.checkBox_show_bands.stateChanged.connect(self.on_show_bands_changed)
     
     # -----------------------------------------------------------------------
     # MÉTODOS DE COLORMAP
@@ -594,6 +597,16 @@ class VisualizationWidget(QDockWidget):
     def on_setting_changed(self):
         """Se llama cuando cambia algún parámetro"""
         settings = self.get_settings()
+        self.settings_changed.emit(settings)
+
+    def on_show_bands_changed(self, state):
+        """Manejador para mostrar/ocultar el Band Plan"""
+        show_bands = state == Qt.Checked
+        self.logger.info(f"📡 Band Plan: {'mostrar' if show_bands else 'ocultar'} - Usando bands.json")
+        
+        # Emitir señal con la configuración
+        settings = self.get_settings()
+        settings['show_band_plan'] = show_bands
         self.settings_changed.emit(settings)
     
     def _on_colorbar_levels_changed(self):

@@ -261,9 +261,9 @@
          </property>
          <layout class="QGridLayout" name="gridLayout">
           <item row="0" column="0">
-           <widget class="QCheckBox" name="checkBox">
+           <widget class="QCheckBox" name="checkBox_show_bands">
             <property name="text">
-             <string>CheckBox</string>
+             <string>Mostrar Band Plan</string>
             </property>
            </widget>
           </item>

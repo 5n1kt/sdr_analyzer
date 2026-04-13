@@ -595,6 +595,19 @@ class UIController:
                 f"cada {settings.get('hold_seconds', 0)} s"
             )
 
+                # ===== NUEVO: Band Plan =====
+        if 'show_band_plan' in settings:
+            show_bands = settings['show_band_plan']
+            self.logger.info(f"📡 Band Plan: {'mostrar' if show_bands else 'ocultar'}")
+            
+            if hasattr(self.main, 'spectrum_plot'):
+                self.main.spectrum_plot.set_band_plan_visible(show_bands)
+                
+                # Log de cuántas bandas se están mostrando
+                if show_bands and hasattr(self.main.spectrum_plot, 'band_plan'):
+                    bands_count = len(self.main.spectrum_plot.band_plan.get_all_bands())
+                    self.logger.info(f"📡 Mostrando {bands_count} bandas desde bands.json")
+
     def _clear_persistence(self):
         """Limpia SOLO el waterfall, no las curvas max/min"""
         if hasattr(self.main, 'waterfall'):

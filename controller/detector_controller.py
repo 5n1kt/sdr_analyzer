@@ -97,6 +97,8 @@ class DetectorController:
         self.adapter.scan_progress.connect(self._on_scan_progress)
         self.adapter.values_updated.connect(self.widget.update_detector_values)
 
+        self.adapter.values_updated.connect(self._update_spectrum_lines)
+
         self.adapter.start_processing()
 
         interval = self.SCAN_INTERVAL_MS
@@ -276,3 +278,15 @@ class DetectorController:
             self.main.spectrum_plot.set_noise_visible(visible)
             if value is not None:
                 self.main.spectrum_plot.update_noise(value)
+
+    def _update_spectrum_lines(self, threshold_db: float, noise_db: float):
+        """
+        Actualiza las líneas de umbral y ruido en el gráfico de espectro.
+        """
+        if hasattr(self.main, 'spectrum_plot'):
+            # Actualizar línea de umbral
+            self.main.spectrum_plot.update_threshold(threshold_db)
+            # Actualizar línea de ruido
+            self.main.spectrum_plot.update_noise(noise_db)
+            
+            self.logger.debug(f"📊 Líneas actualizadas: umbral={threshold_db:.1f} dB, ruido={noise_db:.1f} dB")

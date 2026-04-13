@@ -250,6 +250,13 @@ class SpectrumPlot(QObject):
         
         # Color actual de fondo
         self.current_bg_color = self.BACKGROUND_DARK
+
+        from utils.band_plan import BandPlan
+        self.band_plan = BandPlan()
+        self.show_band_plan = False
+        self.band_regions = []  # Almacenar las regiones dibujadas
+        
+        self.logger.info(f"✅ BandPlan inicializado con {len(self.band_plan.get_all_bands())} bandas")
         
         # Configurar plot
         self.setup_plot()
@@ -334,6 +341,9 @@ class SpectrumPlot(QObject):
         
         # Establecer fondo inicial
         self.set_background_color(self.BACKGROUND_DARK)
+
+         # ===== NUEVO: Conectar señal de cambio de rango =====
+        self.plot_widget.sigRangeChanged.connect(self._on_range_changed)
 
         #self._setup_detector_lines()
     
@@ -852,13 +862,14 @@ class SpectrumPlot(QObject):
             # Línea de umbral (roja punteada)
             self.threshold_line = pg.InfiniteLine(
                 angle=0,
-                pen=pg.mkPen('#FF4444', width=2, style=Qt.DashLine),
+                pen=pg.mkPen('#FF4444', width=1, style=Qt.DashLine),
                 movable=False,
                 label="Umbral",
                 labelOpts={'color': '#FF4444', 'position': 0.05}
             )
             self.plot_widget.addItem(self.threshold_line)
-            self.threshold_line.setVisible(self.threshold_visible)
+            #self.threshold_line.setVisible(self.threshold_visible)
+            self.threshold_line.setVisible(True)
             self.threshold_line.setValue(-80)  # Valor inicial
             
             # Línea de ruido (gris punteada)
@@ -870,7 +881,7 @@ class SpectrumPlot(QObject):
                 labelOpts={'color': '#888888', 'position': 0.1}
             )
             self.plot_widget.addItem(self.noise_line)
-            self.noise_line.setVisible(self.noise_visible)
+            self.noise_line.setVisible(True)
             self.noise_line.setValue(-95)  # Valor inicial
             
             self.logger.info("📊 Líneas de detector creadas")
@@ -901,3 +912,347 @@ class SpectrumPlot(QObject):
         if self.noise_line:
             self.noise_line.setValue(noise_db)
             self.noise_line.label.setText(f"Ruido: {noise_db:.1f} dB")
+
+
+    def set_band_plan_visible(self, visible: bool):
+        """Muestra u oculta las bandas de frecuencia"""
+        self.show_band_plan = visible
+        
+        if visible:
+            self._draw_band_regions()
+        else:
+            self._clear_band_regions()
+    
+
+    # widgets/spectrum_plot.py
+
+    def _draw_band_regions(self):
+        """
+        Dibuja las bandas como barras en la PARTE INFERIOR del gráfico.
+        Con detección inteligente de colisiones de etiquetas.
+        """
+        # Limpiar regiones existentes
+        self._clear_band_regions()
+        
+        if not self.plot_widget:
+            return
+        
+        try:
+            # Obtener el rango visible actual
+            x_range = self.plot_widget.getViewBox().viewRange()[0]
+            start_mhz = x_range[0]
+            end_mhz = x_range[1]
+            
+            # Obtener bandas en el rango visible
+            bands = self.band_plan.get_bands_in_range(start_mhz, end_mhz)
+            
+            if not bands:
+                return
+            
+            # Obtener el rango Y del gráfico
+            y_range = self.plot_widget.getViewBox().viewRange()[1]
+            y_min = y_range[0]
+            y_max = y_range[1]
+            
+            # Calcular altura de la barra (3-4% de la altura total)
+            bar_height = (y_max - y_min) * 0.035
+            bar_y_top = y_min + 2  # Pequeño margen desde el borde inferior
+            bar_y_bottom = bar_y_top + bar_height
+            
+            from PyQt5.QtWidgets import QGraphicsRectItem
+            from PyQt5.QtCore import QRectF
+            
+            # ===== PASO 1: Dibujar todas las barras primero =====
+            for band in bands:
+                band_start = max(band['start_mhz'], start_mhz)
+                band_end = min(band['end_mhz'], end_mhz)
+                
+                if band_start >= band_end:
+                    continue
+                
+                # Obtener color de la banda
+                color = self.band_plan.get_band_color(band, alpha=220)
+                border_color = self.band_plan.get_band_color(band, alpha=255)
+                
+                # Crear rectángulo para la barra inferior
+                bar_rect = QGraphicsRectItem()
+                bar_rect.setRect(QRectF(band_start, bar_y_top, 
+                                        band_end - band_start, bar_height))
+                bar_rect.setBrush(color)
+                bar_rect.setPen(pg.mkPen(color=border_color, width=1))
+                bar_rect.setZValue(-5)
+                
+                self.plot_widget.addItem(bar_rect)
+                self.band_regions.append(bar_rect)
+                
+                # Guardar información de la banda para las etiquetas
+                band['_rect'] = (band_start, band_end, bar_y_top, bar_height)
+            
+            # ===== PASO 2: Calcular posiciones de etiquetas evitando colisiones =====
+            # Lista para almacenar las posiciones ya ocupadas
+            used_positions = []
+            
+            # Ordenar bandas por ancho (más anchas primero, para dar prioridad)
+            bands_sorted = sorted(bands, key=lambda b: (b['end_mhz'] - b['start_mhz']), reverse=True)
+            
+            for band in bands_sorted:
+                band_start = max(band['start_mhz'], start_mhz)
+                band_end = min(band['end_mhz'], end_mhz)
+                band_width = band_end - band_start
+                
+                # Solo mostrar etiqueta si la banda es suficientemente ancha
+                if band_width < 1.5:
+                    continue
+                
+                # Obtener nombre para mostrar
+                display_name = band.get('display', band.get('name', ''))
+                
+                # Acortar nombres muy largos según el ancho disponible
+                max_chars = max(4, int(band_width / 2.5))  # Aprox 2.5 MHz por carácter
+                if len(display_name) > max_chars:
+                    display_name = display_name[:max_chars-2] + ".."
+                
+                # Posición candidata (centro de la banda)
+                candidate_pos = (band_start + band_end) / 2
+                
+                # Verificar si esta posición colisiona con etiquetas existentes
+                collision = False
+                for used_pos, used_width in used_positions:
+                    # Si la distancia entre centros es menor que el promedio de los anchos
+                    distance = abs(candidate_pos - used_pos)
+                    min_distance = (band_width + used_width) / 2.5  # Factor de separación
+                    
+                    if distance < min_distance:
+                        collision = True
+                        break
+                
+                # Si hay colisión, intentar desplazar la etiqueta
+                if collision:
+                    # Intentar poner a la izquierda
+                    left_pos = band_start + band_width * 0.25
+                    left_collision = False
+                    for used_pos, used_width in used_positions:
+                        if abs(left_pos - used_pos) < (band_width + used_width) / 3:
+                            left_collision = True
+                            break
+                    
+                    if not left_collision and left_pos > band_start + 0.5:
+                        final_pos = left_pos
+                    else:
+                        # Intentar poner a la derecha
+                        right_pos = band_end - band_width * 0.25
+                        right_collision = False
+                        for used_pos, used_width in used_positions:
+                            if abs(right_pos - used_pos) < (band_width + used_width) / 3:
+                                right_collision = True
+                                break
+                        
+                        if not right_collision and right_pos < band_end - 0.5:
+                            final_pos = right_pos
+                        else:
+                            # Si todo falla, no mostrar etiqueta
+                            continue
+                else:
+                    final_pos = candidate_pos
+                
+                # Registrar esta posición para futuras colisiones
+                used_positions.append((final_pos, band_width))
+                
+                # Crear etiqueta de texto
+                label = pg.TextItem(
+                    text=display_name,
+                    color=(255, 255, 255, 255),
+                    anchor=(0.5, 0.5)
+                )
+                
+                # Posicionar en la posición calculada
+                label.setPos(final_pos, bar_y_top + bar_height / 2)
+                label.setZValue(-4)
+                
+                # Añadir tooltip con información detallada
+                tooltip = f"<b>{band.get('display', band.get('name', ''))}</b><br>"
+                tooltip += f"{band['start_mhz']:.1f} - {band['end_mhz']:.1f} MHz<br>"
+                if band.get('description'):
+                    tooltip += f"{band['description']}<br>"
+                if band.get('type'):
+                    tooltip += f"Tipo: {band.get('type')}"
+                
+                label.setToolTip(tooltip)
+                
+                self.plot_widget.addItem(label)
+                self.band_regions.append(label)
+            
+            # Añadir línea divisoria superior de la barra (opcional)
+            if bands:
+                divider_line = pg.InfiniteLine(
+                    pos=bar_y_top + bar_height,
+                    angle=0,
+                    pen=pg.mkPen('#666666', width=1, style=Qt.DashLine),
+                    movable=False
+                )
+                divider_line.setZValue(-3)
+                self.plot_widget.addItem(divider_line)
+                self.band_regions.append(divider_line)
+            
+            # Log
+            self.logger.debug(f"📡 {len(bands)} bandas dibujadas, {len(used_positions)} etiquetas colocadas")
+            
+        except Exception as e:
+            self.logger.error(f"Error dibujando bandas: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    '''def _draw_band_regions(self):
+        """
+        Dibuja las bandas como barras en la PARTE INFERIOR del gráfico.
+        Estilo profesional: barras coloreadas con etiquetas en la parte baja.
+        No interfiere con la visualización del espectro.
+        """
+        # Limpiar regiones existentes
+        self._clear_band_regions()
+        
+        if not self.plot_widget:
+            return
+        
+        try:
+            # Obtener el rango visible actual
+            x_range = self.plot_widget.getViewBox().viewRange()[0]
+            start_mhz = x_range[0]
+            end_mhz = x_range[1]
+            
+            # Obtener bandas en el rango visible
+            bands = self.band_plan.get_bands_in_range(start_mhz, end_mhz)
+            
+            # Obtener el rango Y del gráfico
+            y_range = self.plot_widget.getViewBox().viewRange()[1]
+            y_min = y_range[0]
+            y_max = y_range[1]
+            
+            # Calcular altura de la barra (3-4% de la altura total)
+            bar_height = (y_max - y_min) * 0.035  # 3.5% de la altura
+            
+            # Posición Y de la barra (parte inferior)
+            bar_y_bottom = y_min  # Base del gráfico
+            bar_y_top = y_min + bar_height  # Parte superior de la barra
+            
+            from PyQt5.QtWidgets import QGraphicsRectItem
+            from PyQt5.QtCore import QRectF
+            
+            for band in bands:
+                # Calcular los límites de la banda dentro del rango visible
+                band_start = max(band['start_mhz'], start_mhz)
+                band_end = min(band['end_mhz'], end_mhz)
+                
+                if band_start >= band_end:
+                    continue
+                
+                # Obtener color de la banda (más opaco para las barras)
+                color = self.band_plan.get_band_color(band, alpha=220)
+                border_color = self.band_plan.get_band_color(band, alpha=255)
+                
+                # Crear rectángulo para la barra inferior
+                bar_rect = QGraphicsRectItem()
+                bar_rect.setRect(QRectF(band_start, bar_y_top, 
+                                        band_end - band_start, bar_height))
+                bar_rect.setBrush(color)
+                bar_rect.setPen(pg.mkPen(color=border_color, width=1))
+                bar_rect.setZValue(-5)  # Detrás de las curvas pero visible
+                
+                self.plot_widget.addItem(bar_rect)
+                self.band_regions.append(bar_rect)
+                
+                # Añadir etiqueta si la banda es suficientemente ancha
+                band_width_mhz = band_end - band_start
+                if band_width_mhz > 1.5:
+                    # Obtener nombre para mostrar
+                    display_name = band.get('display', band.get('name', ''))
+                    
+                    # Acortar nombres muy largos
+                    if len(display_name) > 14:
+                        display_name = display_name[:12] + "..."
+                    
+                    # Crear etiqueta de texto
+                    label = pg.TextItem(
+                        text=display_name,
+                        color=(255, 255, 255, 255),
+                        anchor=(0.5, 0.5)
+                    )
+                    
+                    # Posicionar en el centro de la banda, dentro de la barra
+                    label.setPos((band_start + band_end) / 2, bar_y_top + bar_height / 2)
+                    label.setZValue(-4)
+                    
+                    # Añadir tooltip con información detallada
+                    tooltip = f"<b>{band.get('display', band.get('name', ''))}</b><br>"
+                    tooltip += f"{band['start_mhz']:.1f} - {band['end_mhz']:.1f} MHz<br>"
+                    if band.get('description'):
+                        tooltip += f"{band['description']}<br>"
+                    if band.get('type'):
+                        tooltip += f"Tipo: {band.get('type')}"
+                    
+                    label.setToolTip(tooltip)
+                    bar_rect.setToolTip(tooltip)
+                    
+                    self.plot_widget.addItem(label)
+                    self.band_regions.append(label)
+            
+            # Añadir línea divisoria superior de la barra (opcional)
+            if bands:
+                divider_line = pg.InfiniteLine(
+                    pos=bar_y_top + bar_height,
+                    angle=0,
+                    pen=pg.mkPen('#666666', width=1, style=Qt.DashLine),
+                    movable=False
+                )
+                divider_line.setZValue(-3)
+                self.plot_widget.addItem(divider_line)
+                self.band_regions.append(divider_line)
+            
+            # Log si se dibujaron bandas
+            if bands:
+                self.logger.debug(f"📡 {len(bands)} bandas dibujadas como barras inferiores")
+            
+        except Exception as e:
+            self.logger.error(f"Error dibujando bandas: {e}")
+            import traceback
+            traceback.print_exc()'''
+    
+    def _clear_band_regions(self):
+        """Elimina todas las regiones de bandas dibujadas"""
+        for item in self.band_regions:
+            try:
+                self.plot_widget.removeItem(item)
+            except Exception:
+                pass
+        self.band_regions.clear()
+
+    
+    def update_band_regions(self):
+        """Actualiza las regiones de bandas (llamar cuando cambia el rango)"""
+        if self.show_band_plan:
+            self._draw_band_regions()
+
+
+    def _update_plot_range(self, center_freq: float, sample_rate: float):
+        """Actualiza el rango del plot y refresca las bandas"""
+        try:
+            min_freq = center_freq - sample_rate / 2
+            max_freq = center_freq + sample_rate / 2
+            
+            self.plot_widget.setXRange(min_freq, max_freq)
+            
+            # ===== NUEVO: Actualizar regiones de bandas =====
+            if self.show_band_plan:
+                # Pequeño retraso para asegurar que el rango se actualizó
+                from PyQt5.QtCore import QTimer
+                QTimer.singleShot(50, self.update_band_regions)
+                
+        except Exception as e:
+            self.logger.error(f"Error actualizando rango del plot: {e}")
+
+
+    def _on_range_changed(self, viewbox, range):
+        """Manejador cuando cambia el rango (zoom/pan)"""
+        if self.show_band_plan:
+            self.update_band_regions()

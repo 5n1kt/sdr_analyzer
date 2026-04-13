@@ -55,11 +55,6 @@ class FilterDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
-        # ===== NUEVO: Conectar nuevos controles =====
-        self.checkBox_show_threshold.toggled.connect(self.on_show_threshold_toggled)
-        self.checkBox_show_noise.toggled.connect(self.on_show_noise_toggled)
-        self.pushButton_sync_values.clicked.connect(self.on_sync_values)
         
         # ===== NUEVO: Estado de visualización =====
         self.show_threshold = True
@@ -790,7 +785,7 @@ class SignalDetectorWidget(QDockWidget):
         self._add_log("⏹ Deteniendo escaneo...")
         self.scan_stopped.emit()
 
-    def on_show_threshold_toggled(self, checked):
+    '''def on_show_threshold_toggled(self, checked):
         """Muestra/oculta línea de umbral en el espectro"""
         self.show_threshold = checked
         self.logger.info(f"📊 Mostrar umbral: {checked}")
@@ -806,6 +801,38 @@ class SignalDetectorWidget(QDockWidget):
         self.show_noise = checked
         self.logger.info(f"📊 Mostrar ruido: {checked}")
         
+        self.scan_config_updated.emit({
+            'show_noise': checked,
+            'noise_value': self.current_noise
+        })'''
+    
+    def on_show_threshold_toggled(self, checked):
+        """Muestra/oculta línea de umbral en el espectro"""
+        self.show_threshold = checked
+        self.logger.info(f"📊 Mostrar umbral: {checked}")
+        
+        # Actualizar directamente en el spectrum_plot
+        if hasattr(self, 'main_controller') and self.main_controller:
+            if hasattr(self.main_controller, 'spectrum_plot'):
+                self.main_controller.spectrum_plot.set_threshold_visible(checked)
+        
+        # Emitir señal al controller (para persistencia)
+        self.scan_config_updated.emit({
+            'show_threshold': checked,
+            'threshold_value': self.current_threshold
+        })
+
+    def on_show_noise_toggled(self, checked):
+        """Muestra/oculta línea de ruido en el espectro"""
+        self.show_noise = checked
+        self.logger.info(f"📊 Mostrar ruido: {checked}")
+        
+        # Actualizar directamente en el spectrum_plot
+        if hasattr(self, 'main_controller') and self.main_controller:
+            if hasattr(self.main_controller, 'spectrum_plot'):
+                self.main_controller.spectrum_plot.set_noise_visible(checked)
+        
+        # Emitir señal al controller
         self.scan_config_updated.emit({
             'show_noise': checked,
             'noise_value': self.current_noise
@@ -852,13 +879,34 @@ class SignalDetectorWidget(QDockWidget):
             self.label_threshold_value.setStyleSheet("color: #ffaa00; font-size: 8pt;")
         
         # Log para debug (solo cada cierto tiempo)
+        #if not hasattr(self, '_last_value_log'):
+        #    self._last_value_log = 0
+
+        # ===== NUEVO: Emitir señal para actualizar espectro =====
+        # Esto permite que el spectrum_plot se actualice incluso
+        # si no hay detector_controller en medio
+        if hasattr(self, 'main_controller') and self.main_controller:
+            if hasattr(self.main_controller, 'spectrum_plot'):
+                self.main_controller.spectrum_plot.update_threshold(threshold_db)
+                self.main_controller.spectrum_plot.update_noise(noise_db)
+
+        # Log periódico
+        now = time.time()
         if not hasattr(self, '_last_value_log'):
             self._last_value_log = 0
         
-        now = time.time()
+        if now - self._last_value_log > 5:  # Cada 5 segundos
+            self.logger.info(
+                f"📊 Valores detector - Umbral: {threshold_db:.1f} dB, "
+                f"Ruido: {noise_db:.1f} dB"
+            )
+            self._last_value_log = now
+
+        
+        '''now = time.time()
         if now - self._last_value_log > 5:  # Cada 5 segundos
             self.logger.info(f"📊 Valores detector - Umbral: {threshold_db:.1f} dB, Ruido: {noise_db:.1f} dB")
-            self._last_value_log = now
+            self._last_value_log = now'''
         
         # Si estamos en modo automático, actualizar también el spinbox
         if self.checkBox_auto_threshold.isChecked():

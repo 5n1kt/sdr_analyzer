@@ -11,7 +11,9 @@ from PyQt5.QtCore import QTimer, Qt
 from PyQt5.uic import loadUi
 import numpy as np
 
-from bladerf_manager import BladeRFManager
+# --- CORRECCIÓN: Eliminar import de bladerf_manager ---
+# from bladerf_manager import BladeRFManager  # <-- ¡ELIMINADO! Ya no se usa
+
 from widgets.rf_controls import RFControlsWidget
 from widgets.fft_controls import FFTControlsWidget
 from widgets.visualization import VisualizationWidget
@@ -25,8 +27,6 @@ from workers.iq_processor_zerocopy import IQProcessorZeroCopy
 from workers.fft_processor_zerocopy import FFTProcessorZeroCopy
 from workers.iq_player import IQPlayer
 
-
-
 # =======================================================================
 # IMPORTAR SUBCONTROLADORES
 # =======================================================================
@@ -38,8 +38,7 @@ from controller.frequency_controller import FrequencyController
 from controller.detector_controller import DetectorController
 from controller.audio_controller import AudioController
 
-from utils.theme_manager import ThemeManager  # Asegurar que está importado
-
+from utils.theme_manager import ThemeManager
 from utils.config_manager import ConfigManager
 
 
@@ -49,7 +48,6 @@ from utils.config_manager import ConfigManager
 class MainController(QMainWindow):
     """
     Controlador principal que coordina todos los módulos.
-    Esta clase actúa como fachada, delegando en subcontroladores especializados.
     """
     
     # -----------------------------------------------------------------------
@@ -84,30 +82,31 @@ class MainController(QMainWindow):
         self._setup_ui()
         
         # ===== INICIALIZAR HARDWARE =====
-        self.initialize_bladerf()
+        self.initialize_sdr()  # <-- Cambiado de initialize_bladerf()
         
         # ===== TIMER PARA ACTUALIZACIÓN =====
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_display)
         self.update_timer.start(100)
 
-        # Inicializar config_manager y pasarle el theme_manager
-        #from utils.config_manager import ConfigManager
-        self.config_manager = ConfigManager(self.theme_manager)  # ¡Pasar el theme_manager!
+        # Inicializar config_manager
+        self.config_manager = ConfigManager(self.theme_manager)
         
         # Cargar configuración
         self.config_manager.load_all_settings(self)
 
         if hasattr(self, 'playback_ctrl') and hasattr(self, 'iq_manager'):
-            self.playback_ctrl.set_metadata_callback(self.iq_manager._on_playback_metadata)
-            self.logger.info("✅ Callback de metadata conectado entre playback_ctrl e iq_manager")
+            #self.playback_ctrl.set_metadata_callback(self.iq_manager._on_playback_metadata)
+            self.playback_ctrl.set_metadata_callback(self.iq_manager.update_metadata_display)
+            self.logger.info("✅ Callback de metadata conectado")
         
         self.logger.info("✅ Controlador principal inicializado")
     
     def _init_components(self):
         """Inicializa los componentes básicos"""
-        # Componentes de hardware
-        self.bladerf = None
+        # Componentes de hardware - ahora usa SDRDevice
+        self.bladerf = None  # Esta variable sigue llamándose 'bladerf' por compatibilidad
+                             # pero ahora contendrá un objeto SDRDevice (BladeRFDevice)
         
         # Procesadores
         self.iq_processor = None
@@ -133,12 +132,9 @@ class MainController(QMainWindow):
         self.plot_max = False
         self.plot_min = False
 
-         # Inicializar theme_manager (si no existe ya)
-        if not hasattr(self, 'theme_manager'):
-            from utils.theme_manager import ThemeManager
-            self.theme_manager = ThemeManager()
-            self.logger.info("✅ ThemeManager inicializado en base_controller")
-    
+        # Flag para reiniciar curvas max/min
+        self.reset_max_min_flag = False
+
     def _init_subcontrollers(self):
         """Inicializa los subcontroladores especializados"""
         # RF Controller
@@ -157,11 +153,9 @@ class MainController(QMainWindow):
         self.freq_ctrl = FrequencyController(self)
 
         # Detector Controller
-        #from controller.detector_controller import DetectorController
         self.detector_ctrl = DetectorController(self)
 
-        # ===== NUEVO: Audio Controller =====
-        #from controller.audio_controller import AudioController
+        # Audio Controller
         self.audio_ctrl = AudioController(self)
         
         self.logger.info("✅ Subcontroladores inicializados")
@@ -173,35 +167,26 @@ class MainController(QMainWindow):
         self.ui_ctrl.setup_menu()
         self.ui_ctrl.setup_connections()
 
-        # ===== NUEVO: Conectar VisualizationWidget al controlador =====
+        # Conectar VisualizationWidget al controlador
         if hasattr(self, 'viz_widget'):
             self.viz_widget.set_main_controller(self)
             self.logger.info("🔗 VisualizationWidget conectado al MainController")
 
-
-    
     # -----------------------------------------------------------------------
     # MÉTODOS DELEGADOS A SUBCONTROLADORES
     # -----------------------------------------------------------------------
     
-    # ===== RF Methods =====
-    def initialize_bladerf(self):
-        """Delegado a RF Controller"""
-        return self.rf_ctrl.initialize_bladerf()
+    # ===== SDR Methods =====
+    def initialize_sdr(self, device_type: str = 'bladerf'):
+        """Inicializa el SDR usando la fábrica (delegado a RF Controller)"""
+        return self.rf_ctrl.initialize_sdr(device_type)
     
-    '''def toggle_rx(self):
-        """Delegado a RF Controller"""
-        self.rf_ctrl.toggle_rx()'''
-
-    # controller/base_controller.py
-
     def toggle_rx(self):
         """Alternar recepción, deteniendo reproducción si es necesario."""
         # Si estamos reproduciendo, detener reproducción primero
         if self.is_playing_back:
             self.logger.info("🔄 Deteniendo reproducción para iniciar recepción")
             self.playback_ctrl.stop_playback(restore_rx=True)
-            # Pequeña pausa para asegurar limpieza
             import time
             time.sleep(0.3)
         
@@ -292,71 +277,47 @@ class MainController(QMainWindow):
         """Delegado a UI Controller"""
         self.ui_ctrl.update_display()
     
-    # -----------------------------------------------------------------------
-    # MÉTODOS DE UTILIDAD PARA GRÁFICOS
-    # -----------------------------------------------------------------------
+    # ===== Métodos de utilidad =====
     def _update_plot_range(self, freq_mhz):
-        """
-        Actualiza el rango del gráfico de espectro basado en la frecuencia central.
-        Útil para mantener el gráfico centrado en la frecuencia actual.
-        """
+        """Actualiza el rango del gráfico de espectro"""
         try:
             if not hasattr(self, 'spectrum_plot'):
                 return
             
-            # Obtener sample rate actual
             if self.is_playing_back and self.player:
                 sample_rate = self.player.sample_rate
             else:
                 sample_rate = self.bladerf.sample_rate if self.bladerf else 2e6
             
             sample_rate_mhz = sample_rate / 1e6
-            
-            # Calcular límites
             min_freq = freq_mhz - sample_rate_mhz/2
             max_freq = freq_mhz + sample_rate_mhz/2
             
-            # Aplicar al plot
             self.spectrum_plot.plot_widget.setXRange(min_freq, max_freq)
-            
-            self.logger.debug(f"📊 Rango del plot: {min_freq:.1f} - {max_freq:.1f} MHz")
             
         except Exception as e:
             self.logger.error(f"Error actualizando rango del plot: {e}")
     
     def _update_plot_range_with_sr(self, freq_mhz, sample_rate_hz):
-        """
-        Actualiza el rango del gráfico con un sample rate específico.
-        Útil durante reproducción cuando el sample rate puede ser diferente.
-        """
+        """Actualiza el rango del gráfico con un sample rate específico"""
         try:
             if not hasattr(self, 'spectrum_plot'):
                 return
             
             sample_rate_mhz = sample_rate_hz / 1e6
-            
             min_freq = freq_mhz - sample_rate_mhz/2
             max_freq = freq_mhz + sample_rate_mhz/2
             
             self.spectrum_plot.plot_widget.setXRange(min_freq, max_freq)
             
-            self.logger.info(
-                f"📊 Rango del plot (reproducción): "
-                f"{min_freq:.1f} - {max_freq:.1f} MHz"
-            )
-            
         except Exception as e:
             self.logger.error(f"Error actualizando rango con SR: {e}")
     
-    # -----------------------------------------------------------------------
-    # MÉTODOS DEL MENÚ
-    # -----------------------------------------------------------------------
+    # ===== Métodos del menú =====
     def on_save_config(self):
         """Guarda la configuración actual"""
         try:
-            from utils.config_manager import ConfigManager
-            config = ConfigManager()
-            config.save_all_settings(self)
+            self.config_manager.save_all_settings(self)
             self.statusbar.showMessage("✅ Configuración guardada", 2000)
         except Exception as e:
             self.logger.error(f"Error guardando configuración: {e}")
@@ -365,9 +326,7 @@ class MainController(QMainWindow):
     def on_load_config(self):
         """Carga la configuración guardada"""
         try:
-            from utils.config_manager import ConfigManager
-            config = ConfigManager()
-            config.load_all_settings(self)
+            self.config_manager.load_all_settings(self)
             self.statusbar.showMessage("📂 Configuración cargada", 2000)
         except Exception as e:
             self.logger.error(f"Error cargando configuración: {e}")
@@ -377,7 +336,6 @@ class MainController(QMainWindow):
         """Exporta perfil a archivo JSON"""
         try:
             from PyQt5.QtWidgets import QFileDialog
-            from utils.config_manager import ConfigManager
             
             filename, _ = QFileDialog.getSaveFileName(
                 self,
@@ -387,12 +345,10 @@ class MainController(QMainWindow):
             )
             
             if filename:
-                # Asegurar extensión .json
                 if not filename.endswith('.json'):
                     filename += '.json'
                 
-                config = ConfigManager()
-                if config.export_settings(filename):
+                if self.config_manager.export_settings(filename):
                     self.statusbar.showMessage(f"📤 Perfil exportado: {filename}", 3000)
                 else:
                     self.statusbar.showMessage("❌ Error exportando perfil", 3000)
@@ -404,7 +360,6 @@ class MainController(QMainWindow):
         """Importa perfil desde archivo JSON"""
         try:
             from PyQt5.QtWidgets import QFileDialog, QMessageBox
-            from utils.config_manager import ConfigManager
             
             filename, _ = QFileDialog.getOpenFileName(
                 self,
@@ -414,20 +369,16 @@ class MainController(QMainWindow):
             )
             
             if filename:
-                # Preguntar si aplicar ahora o solo guardar
                 reply = QMessageBox.question(
                     self,
                     "Importar Perfil",
-                    "¿Aplicar la configuración inmediatamente?\n\n"
-                    "Sí: Se aplicará ahora y se guardará como predeterminada.\n"
-                    "No: Solo se guardará en el archivo de configuración.",
+                    "¿Aplicar la configuración inmediatamente?",
                     QMessageBox.Yes | QMessageBox.No
                 )
                 
-                config = ConfigManager()
                 controller_to_use = self if reply == QMessageBox.Yes else None
                 
-                if config.import_settings(filename, controller_to_use):
+                if self.config_manager.import_settings(filename, controller_to_use):
                     self.statusbar.showMessage(f"📥 Perfil importado: {filename}", 3000)
                 else:
                     self.statusbar.showMessage("❌ Error importando perfil", 3000)
@@ -439,21 +390,17 @@ class MainController(QMainWindow):
         """Resetea la configuración a valores por defecto"""
         try:
             from PyQt5.QtWidgets import QMessageBox
-            from utils.config_manager import ConfigManager
             
             reply = QMessageBox.question(
                 self,
                 "Resetear Configuración",
-                "¿Está seguro de que desea resetear TODA la configuración?\n\n"
-                "Esta acción no se puede deshacer.",
+                "¿Está seguro de que desea resetear TODA la configuración?",
                 QMessageBox.Yes | QMessageBox.No
             )
             
             if reply == QMessageBox.Yes:
-                config = ConfigManager()
-                config.clear_all_settings()
+                self.config_manager.clear_all_settings()
                 
-                # Recargar valores por defecto en los widgets
                 if hasattr(self, 'rf_widget'):
                     self.rf_widget.reset_settings()
                 if hasattr(self, 'fft_widget'):
@@ -461,9 +408,7 @@ class MainController(QMainWindow):
                 if hasattr(self, 'viz_widget'):
                     self.viz_widget.reset_settings()
                 
-                # Sincronizar frecuencia por defecto
                 self.sync_frequency_widgets(100.0)
-                
                 self.statusbar.showMessage("🔄 Configuración reseteada", 3000)
                 self.logger.info("Configuración reseteada a valores por defecto")
                 
@@ -487,8 +432,7 @@ class MainController(QMainWindow):
                 "<li>Persistencia de configuración</li>"
                 "<li>Soporte para perfiles exportables</li>"
                 "</ul>"
-                "<p><b>Desarrollado para:</b> INIDETEC - DCD </p>"
-                "<p><b>Configuración:</b> Se guarda automáticamente al salir</p>"
+                "<p><b>Desarrollado para:</b> INIDETEC - DCD</p>"
             )
             
             QMessageBox.about(self, "Acerca de SIMANEEM", info)
@@ -500,43 +444,22 @@ class MainController(QMainWindow):
         """Muestra la ruta del archivo de configuración"""
         try:
             from PyQt5.QtWidgets import QMessageBox
-            from utils.config_manager import ConfigManager
             
-            config = ConfigManager()
-            path = config.get_settings_file_path()
-            
+            path = self.config_manager.get_settings_file_path()
             QMessageBox.information(
                 self,
                 "Ruta de Configuración",
                 f"<b>Archivo de configuración:</b><br><br>{path}"
             )
-            
         except Exception as e:
             self.logger.error(f"Error mostrando ruta de configuración: {e}")
             self.statusbar.showMessage("❌ Error obteniendo ruta", 2000)
     
-    # -----------------------------------------------------------------------
-    # MÉTODOS DE DEPURACIÓN (opcionales)
-    # -----------------------------------------------------------------------
-    def debug_dock_styles(self):
-        """Depuración de estilos de dock (útil para temas)"""
-        self.logger.info("=" * 60)
-        self.logger.info("🔍 VERIFICANDO ESTILOS DE DOCK WIDGETS")
-        
-        for dock in [self.rf_widget, self.fft_widget, self.viz_widget, self.iq_manager]:
-            if hasattr(dock, 'objectName'):
-                name = dock.objectName()
-                self.logger.info(f"   Dock: {name}")
-                self.logger.info(f"      Título: {dock.windowTitle()}")
-                self.logger.info(f"      Visible: {dock.isVisible()}")
-                self.logger.info(f"      Floating: {dock.isFloating()}")
-        
-        self.logger.info("=" * 60)
-    
+    # ===== Métodos de depuración =====
     def get_system_info(self):
         """Retorna información del sistema para debugging"""
         info = {
-            'bladerf_initialized': self.bladerf is not None,
+            'sdr_initialized': self.bladerf is not None,
             'is_running': self.is_running,
             'is_playing_back': self.is_playing_back,
             'sample_rate': self.bladerf.sample_rate if self.bladerf else None,
@@ -544,9 +467,7 @@ class MainController(QMainWindow):
         }
         return info
     
-    # -----------------------------------------------------------------------
-    # MANEJO DE CIERRE
-    # -----------------------------------------------------------------------
+    # ===== Manejo de cierre =====
     def closeEvent(self, event):
         """Cierre de aplicación - coordina todos los subcontroladores"""
         self.logger.info("🔻 Cerrando aplicación...")
@@ -562,9 +483,7 @@ class MainController(QMainWindow):
             
             # Guardar configuración
             try:
-                from utils.config_manager import ConfigManager
-                config = ConfigManager()
-                config.save_all_settings(self)
+                self.config_manager.save_all_settings(self)
                 self.logger.info("✅ Configuración guardada al cerrar")
             except Exception as e:
                 self.logger.error(f"Error guardando configuración al cerrar: {e}")
@@ -575,4 +494,4 @@ class MainController(QMainWindow):
         except Exception as e:
             self.logger.error(f"Error durante el cierre: {e}")
             traceback.print_exc()
-            event.accept()  # Aceptar igual para cerrar
+            event.accept()

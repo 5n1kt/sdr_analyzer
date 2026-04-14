@@ -1,13 +1,21 @@
-# widgets/visualization.py - Versión corregida
+# widgets/visualization.py
+# -*- coding: utf-8 -*-
 
 # =======================================================================
 # IMPORTS
 # =======================================================================
+import warnings
+import numpy as np
+
+# SUPRIMIR WARNINGS DE OVERFLOW EN PYQTGRAPH
+# Estos warnings son inofensivos pero aparecen al hacer auto-range
+# cuando pyqtgraph intenta convertir valores float a int con overflow.
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='pyqtgraph')
+
 from PyQt5.QtWidgets import QDockWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QSpinBox, QWidget, QPushButton
 from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.uic import loadUi
 import pyqtgraph as pg
-import numpy as np
 import logging
 
 
@@ -129,7 +137,7 @@ class VisualizationWidget(QDockWidget):
         self.checkBox_plot_max.setChecked(False)
         self.checkBox_plot_min.setChecked(False)
         
-        # Conectar señales de los spinboxes de umbral (ya existen en el UI)
+        # Conectar señales de los spinboxes de umbral
         self.min_spin.valueChanged.connect(self.on_threshold_changed)
         self.max_spin.valueChanged.connect(self.on_threshold_changed)
         
@@ -140,7 +148,7 @@ class VisualizationWidget(QDockWidget):
         self.pushButton_auto_range.clicked.connect(self.auto_range)
         self.pushButton_clear_persistence.clicked.connect(self.clear_persistence)
 
-        # ===== NUEVO: Configurar comboBox_hold_time =====
+        # Configurar comboBox_hold_time
         self.comboBox_hold_time.setCurrentIndex(0)  # Manual por defecto
         self.comboBox_hold_time.currentIndexChanged.connect(self.on_hold_time_changed)
         
@@ -165,11 +173,6 @@ class VisualizationWidget(QDockWidget):
             self.colorbar.setFixedWidth(80)
             self.colorbar.setMaximumWidth(100)
             self.colorbar.setMinimumHeight(200)
-
-            # Crear HistogramLUTWidget (ahora horizontal)
-            '''self.colorbar = pg.HistogramLUTWidget(orientation='horizontal')
-            self.colorbar.setFixedHeight(80)  # Altura fija para horizontal
-            self.colorbar.setMinimumWidth(300)'''
             
             # Conectar señales
             self.colorbar.item.sigLevelChangeFinished.connect(self._on_colorbar_levels_changed)
@@ -205,8 +208,6 @@ class VisualizationWidget(QDockWidget):
         self.horizontalSlider_persistence.valueChanged.connect(self.on_setting_changed)
         self.checkBox_plot_max.stateChanged.connect(self.on_setting_changed)
         self.checkBox_plot_min.stateChanged.connect(self.on_setting_changed)
-
-         # ===== NUEVO: Conectar checkbox de Band Plan =====
         self.checkBox_show_bands.stateChanged.connect(self.on_show_bands_changed)
     
     # -----------------------------------------------------------------------
@@ -219,7 +220,6 @@ class VisualizationWidget(QDockWidget):
             self.logger.debug(f"🎨 Colorbar preset: {cmap_name}")
         except Exception as e:
             self.logger.error(f"Error aplicando preset {cmap_name}: {e}")
-            # Fallback a viridis
             self.colorbar.item.gradient.loadPreset('viridis')
     
     def _apply_colormap_to_waterfall(self, cmap_name):
@@ -263,12 +263,32 @@ class VisualizationWidget(QDockWidget):
                 # Conectar señal de actualización
                 if hasattr(waterfall, 'updated'):
                     waterfall.updated.connect(self._on_waterfall_updated)
-                
-        # ===== NUEVO: Guardar referencia al controlador principal para acceder al espectro =====
-        if hasattr(self, 'main_controller'):
-            self.main_controller = None  # Se seteará después
-
-
+    
+    def set_main_controller(self, controller):
+        """Guarda referencia al controlador principal para acceder al espectro"""
+        self.main_controller = controller
+        self.logger.info("🔗 VisualizationWidget conectado al MainController")
+    
+    def get_current_spectrum(self):
+        """
+        Obtiene el espectro actual del controlador con limpieza de valores extremos.
+        
+        Returns:
+            np.ndarray: Espectro limpio o None si no disponible
+        """
+        if self.main_controller and hasattr(self.main_controller, 'fft_ctrl'):
+            if hasattr(self.main_controller.fft_ctrl, '_prev_spectrum'):
+                spectrum = self.main_controller.fft_ctrl._prev_spectrum
+                if spectrum is not None:
+                    # Convertir a array numpy si es necesario
+                    spectrum = np.asarray(spectrum)
+                    # Limpiar valores extremos
+                    spectrum = np.nan_to_num(spectrum, nan=-120.0, posinf=-120.0, neginf=-120.0)
+                    # Clamp a rango razonable para evitar overflow
+                    spectrum = np.clip(spectrum, -140.0, 20.0)
+                    return spectrum
+        return None
+    
     def on_hold_time_changed(self, index):
         """Cambia el modo de persistencia de max/min"""
         texts = ['Manual', '1 s', '2 s', '5 s', '10 s', '30 s', '60 s']
@@ -289,16 +309,14 @@ class VisualizationWidget(QDockWidget):
         
         # Emitir cambio
         settings = self.get_settings()
-        #settings['hold_mode'] = self.hold_mode
-        #settings['hold_seconds'] = self.hold_seconds
         self.settings_changed.emit(settings)
     
     def on_hold_timeout(self):
         """Timer de reinicio de curvas max/min"""
         self.logger.info("⏱️ Reiniciando curvas max/min por tiempo")
         settings = {
-            'clear_persistence': False,  # Limpia waterfall
-            'reset_max_min': True       # NUEVO: reinicia max/min
+            'clear_persistence': False,
+            'reset_max_min': True
         }
         self.settings_changed.emit(settings)
     
@@ -322,25 +340,10 @@ class VisualizationWidget(QDockWidget):
         
         return settings
     
-    '''def auto_range(self):
-        """Autoajusta rango de colores"""
-        if hasattr(self, 'colorbar'):
-            self.colorbar.autoHistogramRange()
-            levels = self.colorbar.getLevels()
-            if levels and len(levels) >= 2:
-                self.min_spin.setValue(int(levels[0]))
-                self.max_spin.setValue(int(levels[1]))
-        
-        settings = self.get_settings()
-        settings['auto_range'] = True
-        self.settings_changed.emit(settings)'''
-
-    # widgets/visualization.py
-
     def auto_range(self):
         """
         Autoajusta el rango dinámico basado en el espectro actual.
-        Encuentra el pico máximo y el piso de ruido, establece márgenes inteligentes.
+        Maneja valores extremos para evitar warnings de overflow.
         """
         try:
             # Obtener el espectro actual
@@ -348,7 +351,6 @@ class VisualizationWidget(QDockWidget):
             
             if spectrum is None or len(spectrum) == 0:
                 self.logger.warning("⚠️ No hay datos de espectro disponibles para auto-rango")
-                # Fallback: usar el colorbar existente
                 if hasattr(self, 'colorbar'):
                     self.colorbar.autoHistogramRange()
                     levels = self.colorbar.getLevels()
@@ -357,33 +359,41 @@ class VisualizationWidget(QDockWidget):
                         self.max_spin.setValue(int(levels[1]))
                 return
             
-            # ===== ANÁLISIS DEL ESPECTRO =====
-            # Encontrar pico máximo (ignorando valores atípicos)
+            # ===== LIMPIAR DATOS: Eliminar valores infinitos y NaN =====
             spectrum_clean = spectrum[~np.isinf(spectrum)]
             spectrum_clean = spectrum_clean[~np.isnan(spectrum_clean)]
             
             if len(spectrum_clean) == 0:
+                self.logger.warning("⚠️ Espectro sin datos válidos después de limpiar")
                 return
             
-            # Percentiles para evitar outliers
-            max_peak = np.percentile(spectrum_clean, 99.5)  # Pico máximo real
-            noise_floor = np.percentile(spectrum_clean, 5)   # Piso de ruido (5% más bajo)
+            # ===== ANÁLISIS DEL ESPECTRO CON LÍMITES SEGUROS =====
+            max_peak = np.percentile(spectrum_clean, 99.5)
+            noise_floor = np.percentile(spectrum_clean, 5)
+            
+            # Validar valores
+            if not np.isfinite(max_peak) or max_peak > 100 or max_peak < -200:
+                max_peak = -40.0
+            
+            if not np.isfinite(noise_floor) or noise_floor < -200 or noise_floor > 100:
+                noise_floor = -100.0
             
             # ===== CÁLCULO DE NUEVOS LÍMITES =====
-            # Margen superior: pico + 5 dB (para ver clipping)
             new_max = max_peak + 5.0
+            new_min = min(noise_floor - 10.0, max_peak - 50.0)
             
-            # Margen inferior: entre piso de ruido y -10 dB por debajo
-            # Para que el ruido sea visible pero no domine
-            new_min = min(noise_floor - 5.0, max_peak - 50.0)
+            # CLAMPING ESTRICTO
+            new_min = max(-140.0, min(new_min, -20.0))
+            new_max = min(20.0, max(new_max, -30.0))
             
-            # Limitar rangos razonables
-            new_min = max(-140.0, min(new_min, -50.0))  # Entre -140 y -50 dB
-            new_max = min(20.0, max(new_max, -30.0))    # Entre -30 y 20 dB
-            
-            # Asegurar rango mínimo de 30 dB para visibilidad
+            # Asegurar rango mínimo
             if new_max - new_min < 30:
                 new_min = new_max - 30
+                new_min = max(-140.0, new_min)
+            
+            if new_min >= new_max:
+                new_min = new_max - 30
+                new_min = max(-140.0, new_min)
             
             self.logger.info(
                 f"📊 Auto-rango: pico={max_peak:.1f} dB, ruido={noise_floor:.1f} dB → "
@@ -397,39 +407,48 @@ class VisualizationWidget(QDockWidget):
             self.min_threshold = new_min
             self.max_threshold = new_max
             
-            self.min_spin.setValue(int(new_min))
-            self.max_spin.setValue(int(new_max))
+            self.min_spin.setValue(int(round(new_min)))
+            self.max_spin.setValue(int(round(new_max)))
             
             self.min_spin.blockSignals(False)
             self.max_spin.blockSignals(False)
             
             # Actualizar colorbar
             if hasattr(self, 'colorbar'):
-                self.colorbar.setLevels(new_min, new_max)
-                self.colorbar.setHistogramRange(new_min, new_max)
+                try:
+                    self.colorbar.setLevels(new_min, new_max)
+                    self.colorbar.setHistogramRange(new_min, new_max)
+                except Exception as e:
+                    self.logger.debug(f"Error actualizando colorbar: {e}")
             
             # Actualizar waterfall
             if self.waterfall:
-                self.waterfall.set_display_range(new_min, new_max)
+                try:
+                    self.waterfall.set_display_range(new_min, new_max)
+                except Exception as e:
+                    self.logger.debug(f"Error actualizando waterfall: {e}")
             
-            # Actualizar colores de curvas basados en nuevo rango
-            active_color, max_color, min_color = self.get_colors_from_levels(
-                new_min, new_max
-            )
+            # Actualizar colores de curvas
+            try:
+                active_color, max_color, min_color = self.get_colors_from_levels(
+                    new_min, new_max
+                )
+                
+                settings = self.get_settings()
+                settings['curve_colors'] = {
+                    'active': active_color,
+                    'max': max_color,
+                    'min': min_color
+                }
+                settings['min_threshold'] = new_min
+                settings['max_threshold'] = new_max
+                settings['auto_range'] = True
+                
+                self.settings_changed.emit(settings)
+            except Exception as e:
+                self.logger.debug(f"Error actualizando colores: {e}")
             
-            settings = self.get_settings()
-            settings['curve_colors'] = {
-                'active': active_color,
-                'max': max_color,
-                'min': min_color
-            }
-            settings['min_threshold'] = new_min
-            settings['max_threshold'] = new_max
-            settings['auto_range'] = True
-            
-            self.settings_changed.emit(settings)
-            
-            # Mensaje en barra de estado si está disponible
+            # Mensaje en barra de estado
             if hasattr(self, 'main_controller') and self.main_controller:
                 self.main_controller.statusbar.showMessage(
                     f"📊 Auto-rango: {new_min:.0f} dB a {new_max:.0f} dB (pico: {max_peak:.1f} dB)",
@@ -438,22 +457,13 @@ class VisualizationWidget(QDockWidget):
             
         except Exception as e:
             self.logger.error(f"Error en auto_range: {e}")
-            import traceback
-            traceback.print_exc()
     
     def clear_persistence(self):
-        """Limpia la persistencia del waterfall"""
-        settings = self.get_settings()
-        settings['clear_persistence'] = True
-        settings['reset_max_min'] = True
-        self.settings_changed.emit(settings)
-
-    def on_clear_persistence_clicked(self):
-        """Botón LIMPIAR - limpia waterfall Y curvas"""
-        self.logger.info("🗑️ Limpiando waterfall y curvas")
+        """Limpia la persistencia del waterfall Y las curvas max/min."""
+        self.logger.info("🗑️ Limpiando waterfall y curvas max/min")
         settings = {
-            'clear_persistence': True,   # Limpia waterfall
-            'reset_max_min': True        # También reinicia curvas
+            'clear_persistence': True,
+            'reset_max_min': True
         }
         self.settings_changed.emit(settings)
     
@@ -462,9 +472,9 @@ class VisualizationWidget(QDockWidget):
         self.logger.info("🎨 Botón de prueba presionado")
         settings = {
             'curve_colors': {
-                'active': '#FF00FF',  # Magenta
-                'max': '#00FF00',      # Verde
-                'min': '#FF0000'       # Rojo
+                'active': '#FF00FF',
+                'max': '#00FF00',
+                'min': '#FF0000'
             }
         }
         self.settings_changed.emit(settings)
@@ -480,14 +490,12 @@ class VisualizationWidget(QDockWidget):
             if not hasattr(self, 'colorbar') or not self.colorbar:
                 return '#00ff00', '#ff0000', '#0000ff'
             
-            # Obtener lookup table del gradient
             gradient = self.colorbar.item.gradient
             lookup_table = gradient.getLookupTable(512)
             
             if lookup_table is None or len(lookup_table) == 0:
                 return '#00ff00', '#ff0000', '#0000ff'
             
-            # Calcular índices
             total_range = max_level - min_level
             if total_range <= 0:
                 total_range = 120
@@ -503,7 +511,6 @@ class VisualizationWidget(QDockWidget):
             max_idx = level_to_index(max_level)
             mid_idx = level_to_index((min_level + max_level) / 2)
             
-            # Convertir a hex
             def rgb_to_hex(rgb):
                 return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
             
@@ -534,16 +541,13 @@ class VisualizationWidget(QDockWidget):
         self.min_threshold = self.min_spin.value()
         self.max_threshold = self.max_spin.value()
         
-        # Actualizar colorbar
         if hasattr(self, 'colorbar'):
             self.colorbar.setLevels(self.min_threshold, self.max_threshold)
             self.colorbar.setHistogramRange(self.min_threshold, self.max_threshold)
         
-        # Actualizar waterfall
         if self.waterfall:
             self.waterfall.set_display_range(self.min_threshold, self.max_threshold)
         
-        # Actualizar colores de curvas
         try:
             active_color, max_color, min_color = self.get_colors_from_levels(
                 self.min_threshold, self.max_threshold
@@ -562,7 +566,6 @@ class VisualizationWidget(QDockWidget):
     
     def on_colormap_changed(self):
         """Maneja cambio de colormap"""
-        # Obtener el colormap seleccionado
         cmap_key = self.comboBox_color_map.currentData()
         if cmap_key is None:
             return
@@ -572,13 +575,9 @@ class VisualizationWidget(QDockWidget):
         
         self.logger.info(f"🎨 Cambiando a colormap: {cmap_info['name']} ({cmap_key})")
         
-        # 1. Actualizar colorbar
         self._apply_colormap_to_colorbar(cmap_key)
-        
-        # 2. Actualizar waterfall
         self._apply_colormap_to_waterfall(cmap_key)
         
-        # 3. Actualizar colores del espectro basados en niveles actuales
         if hasattr(self, 'min_spin') and hasattr(self, 'max_spin'):
             active_color, max_color, min_color = self.get_colors_from_levels(
                 self.min_spin.value(), self.max_spin.value()
@@ -598,13 +597,12 @@ class VisualizationWidget(QDockWidget):
         """Se llama cuando cambia algún parámetro"""
         settings = self.get_settings()
         self.settings_changed.emit(settings)
-
+    
     def on_show_bands_changed(self, state):
         """Manejador para mostrar/ocultar el Band Plan"""
         show_bands = state == Qt.Checked
         self.logger.info(f"📡 Band Plan: {'mostrar' if show_bands else 'ocultar'} - Usando bands.json")
         
-        # Emitir señal con la configuración
         settings = self.get_settings()
         settings['show_band_plan'] = show_bands
         self.settings_changed.emit(settings)
@@ -615,7 +613,6 @@ class VisualizationWidget(QDockWidget):
         if levels and len(levels) >= 2:
             min_level, max_level = levels[0], levels[1]
             
-            # Actualizar spinboxes
             self.min_spin.blockSignals(True)
             self.max_spin.blockSignals(True)
             self.min_spin.setValue(int(min_level))
@@ -623,7 +620,6 @@ class VisualizationWidget(QDockWidget):
             self.min_spin.blockSignals(False)
             self.max_spin.blockSignals(False)
             
-            # Obtener colores y emitir
             active_color, max_color, min_color = self.get_colors_from_levels(
                 min_level, max_level
             )
@@ -647,18 +643,3 @@ class VisualizationWidget(QDockWidget):
         """Respuesta a actualización del waterfall"""
         if hasattr(self, 'colorbar'):
             self.colorbar.autoHistogramRange()
-
-    # widgets/visualization.py
-
-    def set_main_controller(self, controller):
-        """Guarda referencia al controlador principal para acceder al espectro"""
-        self.main_controller = controller
-        self.logger.info("🔗 VisualizationWidget conectado al MainController")
-    
-    def get_current_spectrum(self):
-        """Obtiene el espectro actual del controlador"""
-        if self.main_controller and hasattr(self.main_controller, 'fft_ctrl'):
-            # Acceder al último espectro procesado
-            if hasattr(self.main_controller.fft_ctrl, '_prev_spectrum'):
-                return self.main_controller.fft_ctrl._prev_spectrum
-        return None

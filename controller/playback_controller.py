@@ -1,9 +1,29 @@
-# controller/playback_controller.py - VERSIÓN CORREGIDA
+# -*- coding: utf-8 -*-
+
+"""
+Playback Controller - IQ File Playback
+=======================================
+Manages playback of IQ recordings with async file loading.
+
+Features:
+    - Asynchronous file loading (non-blocking UI)
+    - Seamless transition between live capture and playback
+    - Automatic restoration of RF configuration after playback
+    - Speed control and loop mode
+    - Progress reporting with accurate time calculation
+
+CORRECTIONS APPLIED:
+    1. Async file loading with FileLoaderThread
+    2. Proper state restoration between live and playback modes
+    3. Accurate time calculation (4 bytes per complex sample)
+    4. Smooth progress slider updates
+"""
 
 import os
 import time
 import logging
 import traceback
+import numpy as np  
 from PyQt5.QtWidgets import QMessageBox, QApplication
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -12,331 +32,343 @@ from workers.shared_buffer import IQRingBuffer
 from workers.fft_processor_zerocopy import FFTProcessorZeroCopy
 
 
-# =======================================================================
-# HILO AUXILIAR — CARGA ASÍNCRONA DE ARCHIVO IQ (CORREGIDO)
-# =======================================================================
+# ============================================================================
+# ASYNC FILE LOADER THREAD
+# ============================================================================
+
 class FileLoaderThread(QThread):
     """
-    Carga el archivo IQ en un hilo separado para no bloquear la GUI.
+    Loads IQ file in a separate thread to prevent UI blocking.
     """
     load_finished = pyqtSignal(bool, object)  # (success, player_instance)
-
-    def __init__(self, filename):
+    
+    def __init__(self, filename: str):
         super().__init__()
         self.filename = filename
-        self.player = None  # Se crea dentro del hilo
+        self.player = None
         self.success = False
-
-    def run(self):
-        """Carga el archivo en el hilo secundario"""
+    
+    def run(self) -> None:
+        """Load file in background."""
         try:
-            # Crear player dentro del hilo
             self.player = IQPlayer()
             self.success = self.player.load_file(self.filename)
             self.load_finished.emit(self.success, self.player)
         except Exception as e:
-            logging.getLogger(__name__).error(f"Error en FileLoaderThread: {e}")
+            logging.getLogger(__name__).error(f"Error in FileLoaderThread: {e}")
             self.load_finished.emit(False, None)
 
 
-# =======================================================================
-# CONTROLADOR DE REPRODUCCIÓN (CORREGIDO)
-# =======================================================================
+# ============================================================================
+# PLAYBACK CONTROLLER
+# ============================================================================
+
 class PlaybackController:
-    """Gestiona la reproducción de archivos IQ"""
+    """
+    Controls IQ file playback.
+    
+    Manages the transition between live capture and playback modes,
+    including saving and restoring RF configuration.
+    """
     
     def __init__(self, main_controller):
         self.main = main_controller
         self.logger = logging.getLogger(f"{__name__}.PlaybackController")
         
+        # State
         self._saved_rf_config = None
         self._is_loading = False
         self._metadata_callback = None
         
+        # Pending configuration
         self._pending_speed = 1.0
         self._pending_loop = False
         self._pending_filename = None
         self._pending_fft_size = 1024
         self._pending_samples_per_block = 8192
-
-     # ===== MÉTODO FALTANTE =====
-    def on_playback_requested(self, filename, play):
+        
+        # File loader
+        self._file_loader = None
+    
+    # ------------------------------------------------------------------------
+    # PUBLIC API
+    # ------------------------------------------------------------------------
+    
+    def on_playback_requested(self, filename: str, play: bool) -> None:
         """
-        Manejador para solicitudes de reproducción.
-        Llamado desde IQManagerWidget cuando se presiona play/stop.
+        Handle playback request from IQ Manager.
         
         Args:
-            filename (str): Ruta del archivo a reproducir
-            play (bool): True para iniciar, False para detener
+            filename: Path to IQ file
+            play: True to start, False to stop
         """
         if play:
-            self.logger.info(f"▶ Solicitud de reproducción: {filename}")
+            self.logger.info(f"▶ Playback requested: {filename}")
             self.start_playback(filename)
         else:
-            self.logger.info("⏹ Solicitud de detención de reproducción")
+            self.logger.info("⏹ Stop requested")
             self.stop_playback()
-
     
-    # controller/playback_controller.py
-
-    def start_playback(self, filename):
-        """Inicia la reproducción de un archivo IQ — carga asíncrona sin bloqueo."""
-        # Evitar cargas múltiples
+    def start_playback(self, filename: str) -> None:
+        """
+        Start playback of IQ file.
+        
+        Args:
+            filename: Path to IQ file (.sigmf-data or .bin)
+        """
+        # Prevent multiple loads
         if self._is_loading:
-            self.logger.warning("⚠️ Ya hay una carga en progreso, ignorando...")
+            self.logger.warning("⚠️ Already loading, ignoring...")
             return
         
         try:
             self.logger.info("=" * 60)
-            self.logger.info(f"🎬 PlaybackController.start_playback: {filename}")
+            self.logger.info(f"🎬 Starting playback: {filename}")
             
-            # ===== LIMPIAR METADATA ANTERIOR INMEDIATAMENTE =====
+            # Clear previous metadata in UI
             if hasattr(self.main, 'iq_manager') and self.main.iq_manager:
-                self.logger.info("🗑️ Limpiando metadata anterior en UI...")
+                self.logger.info("🗑️ Clearing previous metadata...")
                 self.main.iq_manager.clear_metadata_display()
-                # Forzar actualización de la UI
                 QApplication.processEvents()
-                self.logger.info("✅ Metadata anterior limpiada")
-            else:
-                self.logger.warning("⚠️ iq_manager no disponible para limpiar metadata")
             
-            # ===== PASO 1: VERIFICAR Y DETENER RECEPCIÓN ACTIVA =====
+            # ===== STEP 1: Stop live capture if active =====
             if self.main.is_running:
-                self.logger.info("📻 Recepción activa detectada - Deteniendo antes de reproducir")
+                self.logger.info("📻 Live capture active - stopping before playback")
                 self._saved_rf_config = {
-                    'frequency':  self.main.bladerf.frequency  if self.main.bladerf else 100e6,
+                    'frequency': self.main.bladerf.frequency if self.main.bladerf else 100e6,
                     'sample_rate': self.main.bladerf.sample_rate if self.main.bladerf else 2e6,
-                    'bandwidth':  self.main.bladerf.bandwidth   if self.main.bladerf else 1e6,
-                    'gain':       self.main.bladerf.gain        if self.main.bladerf else 50,
-                    'gain_mode':  self.main.bladerf.gain_mode   if self.main.bladerf else 'Manual'
+                    'bandwidth': self.main.bladerf.bandwidth if self.main.bladerf else 1e6,
+                    'gain': self.main.bladerf.gain if self.main.bladerf else 50,
+                    'gain_mode': self.main.bladerf.gain_mode if self.main.bladerf else 'Manual'
                 }
-                self.logger.info(f"💾 Configuración RF guardada: {self._saved_rf_config['frequency']/1e6:.1f} MHz")
+                self.logger.info(f"💾 RF config saved: {self._saved_rf_config['frequency']/1e6:.1f} MHz")
                 self.main.rf_ctrl.stop_rx()
                 QApplication.processEvents()
                 time.sleep(0.1)
-
-            # ===== PASO 2: DETENER REPRODUCCIÓN ANTERIOR =====
+            
+            # ===== STEP 2: Stop any existing playback =====
             if self.main.is_playing_back:
-                self.logger.info("⏹ Deteniendo reproducción anterior")
+                self.logger.info("⏹ Stopping previous playback")
                 self.stop_playback()
                 QApplication.processEvents()
                 time.sleep(0.1)
-
-            # ===== PASO 3: VERIFICAR ARCHIVO =====
+            
+            # ===== STEP 3: Verify file exists =====
             if not os.path.exists(filename):
-                self.logger.error(f"❌ Archivo no encontrado: {filename}")
-                QMessageBox.critical(self.main, "Error", f"No se encontró el archivo:\n{filename}")
-                # Restaurar estado en UI
+                self.logger.error(f"❌ File not found: {filename}")
+                QMessageBox.critical(self.main, "Error", f"File not found:\n{filename}")
                 if hasattr(self.main, 'iq_manager') and self.main.iq_manager:
-                    self.main.iq_manager.label_play_metadata.setText("Archivo no encontrado")
+                    self.main.iq_manager.label_play_metadata.setText("File not found")
                 return
-
-            self.logger.info(f"🎬 Iniciando reproducción: {filename}")
-
-            # ===== PASO 4: OBTENER CONFIGURACIÓN =====
+            
+            # ===== STEP 4: Get playback configuration =====
             speed = 1.0
             loop = False
             if hasattr(self.main, 'iq_manager'):
                 speed = float(self.main.iq_manager.spinBox_play_speed.value())
                 loop = self.main.iq_manager.pushButton_play_loop.isChecked()
-                self.logger.info(f"⚙️ Configuración: speed={speed}x, loop={loop}")
-
-            # ===== PASO 5: GUARDAR CONFIGURACIÓN PARA DESPUÉS =====
+                self.logger.info(f"⚙️ Config: speed={speed}x, loop={loop}")
+            
+            # ===== STEP 5: Save pending configuration =====
             self._pending_speed = speed
             self._pending_loop = loop
             self._pending_filename = filename
             self._pending_fft_size = self._get_fft_size()
             self._pending_samples_per_block = self._get_samples_per_block()
-
-            # ===== PASO 6: INICIAR CARGA ASÍNCRONA =====
+            
+            # ===== STEP 6: Start async file loading =====
             self._is_loading = True
-            self.main.statusbar.showMessage("📂 Cargando archivo IQ... por favor espera")
+            self.main.statusbar.showMessage("📂 Loading IQ file... please wait")
             QApplication.processEvents()
-
-            # Crear hilo de carga
+            
             self._file_loader = FileLoaderThread(filename)
             self._file_loader.load_finished.connect(self._on_file_loaded)
             self._file_loader.start()
             
             self.logger.info("=" * 60)
-
+            
         except Exception as e:
             self._is_loading = False
-            self._handle_playback_error(e)
-
-
-    '''def _on_file_loaded(self, success, player):
-        """Continúa la reproducción después de que el archivo terminó de cargar."""
-        self._is_loading = False
-        
-        try:
-            if not success or player is None:
-                raise RuntimeError("No se pudo cargar el archivo")
-            
-            self.logger.info("=" * 60)
-            self.logger.info("📂 Archivo cargado exitosamente")
-            
-            # ===== ASIGNAR EL PLAYER CARGADO =====
-            self.main.player = player
-            
-            # ===== CONECTAR SEÑALES ANTES DE CUALQUIER OPERACIÓN =====
-            self._connect_player_signals()
-            
-            # ===== LA METADATA YA DEBERÍA HABER SIDO EMITIDA =====
-            # Pero si no, forzamos actualización
-            if hasattr(self.main.player, 'metadata') and self.main.player.metadata:
-                self.logger.info("📡 Actualizando UI con metadata del archivo")
-                # Llamar directamente al método del widget
-                if hasattr(self.main, 'iq_manager') and self.main.iq_manager:
-                    self.main.iq_manager.update_metadata_display(self.main.player.metadata)
-                    from PyQt5.QtWidgets import QApplication
-                    QApplication.processEvents()
-            else:
-                self.logger.warning("⚠️ No hay metadata disponible en el player")
-            
-            # Configurar el player (NO iniciar reproducción todavía)
-            self.main.player.configure(
-                samples_per_buffer=self._pending_samples_per_block,
-                speed=self._pending_speed,
-                loop=self._pending_loop
-            )
-
-            # ===== ACTUALIZAR RANGO DEL PLOT =====
-            self._update_ui_with_playback_info()
-
-            # ===== CREAR PIPELINE DE REPRODUCCIÓN =====
-            self._create_playback_pipeline(self._pending_samples_per_block, self._pending_fft_size)
-
-            # NOTA: NO iniciamos reproducción automáticamente
-            # El usuario debe presionar PLAY para iniciar
-            
-            # ===== ACTUALIZAR UI =====
-            self._update_ui_playback_state(False, self._pending_filename)  # Estado = cargado pero no reproduciendo
-            
-            self.logger.info("✅ Archivo cargado y listo para reproducir")
-            self.logger.info("=" * 60)
-
-        except Exception as e:
-            self._handle_playback_error(e)'''
+            self._handle_error(e)
     
-    def _on_file_loaded(self, success, player):
-        """Continúa la reproducción después de que el archivo terminó de cargar."""
+    def stop_playback(self, restore_rx: bool = True) -> None:
+        """
+        Stop playback and optionally restore live capture.
+        
+        Args:
+            restore_rx: If True, restore RF configuration and start live capture
+        """
+        self.logger.info("=" * 50)
+        self.logger.info("🛑 Stopping playback")
+        
+        try:
+            # Stop player
+            if self.main.player:
+                self.logger.info("   ⏹ Stopping player...")
+                self.main.player.stop_playback()
+                if not self.main.player.wait(2000):
+                    self.logger.warning("      ⚠️ Player timeout")
+                self.main.player.close()
+                self.main.player = None
+                self.logger.info("   ✅ Player stopped")
+            
+            # Stop FFT processor
+            if self.main.playback_fft_processor:
+                self.logger.info("   ⏹ Stopping FFT processor...")
+                self.main.playback_fft_processor.stop()
+                self.main.playback_fft_processor = None
+                self.logger.info("   ✅ FFT processor stopped")
+            
+            # Clear buffer
+            self.main.playback_ring_buffer = None
+            self.logger.info("   ✅ Buffer cleared")
+            
+            # Update state
+            self.main.is_playing_back = False
+            
+            # Restore live capture if requested
+            if restore_rx and self._saved_rf_config:
+                self.logger.info("   🔄 Restoring RF configuration...")
+                self._restore_rx_config()
+            
+            # Update UI
+            self._update_ui_playback_state(False)
+            
+            if hasattr(self.main, 'iq_manager'):
+                self.main.iq_manager.set_playback_playing(False)
+                self.main.iq_manager.set_playback_state(True)
+                self.main.iq_manager.pushButton_play_pause.setText("⏸ PAUSE")
+            
+            # Clear waterfall
+            if hasattr(self.main, 'waterfall'):
+                self.main.waterfall.clear()
+            
+            self.main.statusbar.showMessage("⏹ Playback stopped", 3000)
+            self.logger.info("✅ Playback stopped successfully")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error stopping playback: {e}")
+            traceback.print_exc()
+        
+        self.logger.info("=" * 50)
+    
+    def pause_playback(self) -> None:
+        """Pause current playback."""
+        if self.main.player and self.main.is_playing_back:
+            self.logger.info("⏸ Pausing playback")
+            self.main.player.pause_playback()
+    
+    def resume_playback(self) -> None:
+        """Resume paused playback."""
+        if self.main.player and self.main.is_playing_back:
+            self.logger.info("▶ Resuming playback")
+            self.main.player.resume_playback()
+    
+    def set_loop_mode(self, enabled: bool) -> None:
+        """Enable/disable loop mode."""
+        if self.main.player:
+            self.main.player.loop = enabled
+            self.logger.info(f"🔄 Loop mode: {'on' if enabled else 'off'}")
+    
+    def set_metadata_callback(self, callback) -> None:
+        """Register callback for metadata updates."""
+        self._metadata_callback = callback
+        self.logger.info("✅ Metadata callback registered")
+    
+    # ------------------------------------------------------------------------
+    # PRIVATE METHODS - FILE LOADING
+    # ------------------------------------------------------------------------
+    
+    def _on_file_loaded(self, success: bool, player) -> None:
+        """
+        Called when file loading completes.
+        
+        Args:
+            success: True if file loaded successfully
+            player: IQPlayer instance (or None)
+        """
         self._is_loading = False
         
         try:
             if not success or player is None:
-                raise RuntimeError("No se pudo cargar el archivo")
+                raise RuntimeError("Could not load file")
             
             self.logger.info("=" * 60)
-            self.logger.info("📂 Archivo cargado exitosamente")
+            self.logger.info("📂 File loaded successfully")
             
-            # ===== ASIGNAR EL PLAYER CARGADO =====
+            # Assign player
             self.main.player = player
+
+            # IMPORTANTE: Guardar la frecuencia del archivo ANTES de restaurar
+            playback_freq = player.freq_mhz
+            playback_sr = player.sample_rate
             
-            # ===== CONECTAR SEÑALES =====
+            self.logger.info(f"📡 Playback file frequency: {playback_freq:.1f} MHz")
+            self.logger.info(f"📡 Playback file sample rate: {playback_sr/1e6:.1f} MHz")
+            
+            # Actualizar widgets de frecuencia con la frecuencia del archivo
+            self.main.sync_frequency_widgets(playback_freq)
+            
+            # Actualizar plot range con la frecuencia del archivo
+            self.main._update_plot_range_with_sr(playback_freq, playback_sr)
+            
+            # NO actualizar la frecuencia del SDR durante reproducción
+            # El SDR está detenido, no es necesario
+            
+            # Connect signals
             self._connect_player_signals()
             
-            # ===== LA METADATA YA DEBERÍA HABER SIDO EMITIDA =====
-            # Pero si no, forzamos actualización
+            # Emit metadata
             if hasattr(self.main.player, 'metadata') and self.main.player.metadata:
-                self.logger.info("📡 Actualizando UI con metadata del archivo")
+                self.logger.info("📡 Updating UI with metadata...")
                 self._on_playback_metadata(self.main.player.metadata)
             else:
-                self.logger.warning("⚠️ No hay metadata disponible en el player")
+                self.logger.warning("⚠️ No metadata available")
             
-            # Configurar el player
+            # Configure player
             self.main.player.configure(
                 samples_per_buffer=self._pending_samples_per_block,
                 speed=self._pending_speed,
                 loop=self._pending_loop
             )
-
-            # ===== ACTUALIZAR RANGO DEL PLOT =====
+            
+            # Update plot range
             self._update_ui_with_playback_info()
-
-            # ===== CREAR PIPELINE DE REPRODUCCIÓN =====
-            self._create_playback_pipeline(self._pending_samples_per_block, self._pending_fft_size)
-
-            # ===== INICIAR REPRODUCCIÓN =====
-            self.logger.info("🚀 Iniciando FFTProcessor...")
+            
+            # Create playback pipeline
+            self._create_playback_pipeline(
+                self._pending_samples_per_block,
+                self._pending_fft_size
+            )
+            
+            # Start FFT processor
+            self.logger.info("🚀 Starting FFT processor...")
             self.main.playback_fft_processor.start()
-
-            self.logger.info("▶ Iniciando reproducción...")
+            
+            # Start playback
+            self.logger.info("▶ Starting playback...")
             self.main.is_playing_back = True
             self.main.player.start_playback()
-
-            # ===== ACTUALIZAR UI =====
+            
+            # Update UI
             self._update_ui_playback_state(True, self._pending_filename)
             
-            self.logger.info("✅ Reproducción iniciada correctamente")
+            self.logger.info("✅ Playback started successfully")
             self.logger.info("=" * 60)
-
+            
         except Exception as e:
-            self._handle_playback_error(e)
-
-    '''def _on_playback_metadata(self, metadata):
-        """Manejador cuando se carga metadata del archivo."""
-        self.logger.info("=" * 60)
-        self.logger.info("📋 _on_playback_metadata EJECUTADO EN PLAYBACKCONTROLLER")
-        self.logger.info(f"   Metadata: {metadata}")
-        self.logger.info("=" * 60)
-        
-        # Actualizar UI inmediatamente con repaint forzado
-        if hasattr(self.main, 'iq_manager') and self.main.iq_manager:
-            self.logger.info("   Actualizando IQManagerWidget...")
-            # Llamar directamente y forzar procesamiento de eventos
-            self.main.iq_manager.update_metadata_display(metadata)
-            from PyQt5.QtWidgets import QApplication
-            QApplication.processEvents()  # Forzar actualización inmediata
-        else:
-            self.logger.error("❌ iq_manager no disponible")'''
+            self._handle_error(e)
     
-    def _on_playback_metadata(self, metadata):
-        """Manejador cuando se carga metadata del archivo."""
-        self.logger.info("=" * 60)
-        self.logger.info("📋 _on_playback_metadata EJECUTADO EN PLAYBACKCONTROLLER")
-        self.logger.info(f"   Metadata: {metadata}")
-        self.logger.info("=" * 60)
-        
-        # Actualizar UI inmediatamente
-        if hasattr(self.main, 'iq_manager') and self.main.iq_manager:
-            self.logger.info("   Actualizando IQManagerWidget...")
-            self.main.iq_manager.update_metadata_display(metadata)
-        else:
-            self.logger.error("❌ iq_manager no disponible")
-
-    
-    def _get_fft_size(self):
-        """Obtiene tamaño FFT actual"""
-        if hasattr(self.main, 'fft_widget'):
-            return self.main.fft_widget.get_settings().get('fft_size', 1024)
-        return 1024
-
-    def _get_samples_per_block(self):
-        """Obtiene samples por bloque"""
-        if self.main.bladerf:
-            return getattr(self.main.bladerf, 'samples_per_block', 8192)
-        return 8192
-
-    def _connect_player_signals(self):
-        """Conecta las señales del player."""
+    def _connect_player_signals(self) -> None:
+        """Connect all player signals."""
         if self.main.player is None:
-            self.logger.warning("⚠️ No se pueden conectar señales: player es None")
             return
         
         p = self.main.player
         
-        self.logger.info("🔌 Conectando señales del player...")
-        self.logger.info(f"   Player tiene metadata_loaded: {hasattr(p, 'metadata_loaded')}")
+        self.logger.info("🔌 Connecting player signals...")
         
-        # Conectar señal de metadata
-        try:
-            p.metadata_loaded.connect(self._on_playback_metadata)
-            self.logger.info("✅ metadata_loaded conectado a _on_playback_metadata")
-        except Exception as e:
-            self.logger.error(f"❌ Error conectando metadata_loaded: {e}")
-        
-        # Conectar otras señales
+        p.metadata_loaded.connect(self._on_playback_metadata)
         p.buffer_ready.connect(self._on_playback_buffer_ready)
         p.playback_finished.connect(self._on_playback_finished)
         p.playback_stopped.connect(self._on_playback_stopped)
@@ -345,37 +377,78 @@ class PlaybackController:
         p.playback_started.connect(self._on_playback_started)
         p.playback_paused.connect(self._on_playback_paused)
         
-        self.logger.info("✅ Todas las señales del player conectadas correctamente")
+        self.logger.info("✅ All player signals connected")
+    
+    def _on_playback_metadata(self, metadata: dict) -> None:
+        """
+        Handle metadata from player.
+        
+        Args:
+            metadata: Dictionary with file metadata
+        """
+        self.logger.info("=" * 60)
+        self.logger.info("📋 Playback metadata received")
+        self.logger.info(f"   Freq: {metadata.get('frequency', 100):.3f} MHz")
+        self.logger.info(f"   SR: {metadata.get('sample_rate', 2e6)/1e6:.2f} MHz")
+        self.logger.info(f"   Duration: {metadata.get('duration', 0):.1f} s")
+        self.logger.info(f"   Mode: {metadata.get('mode', 'CONT')}")
+        
+        # Update UI
+        if hasattr(self.main, 'iq_manager') and self.main.iq_manager:
+            self.main.iq_manager.update_metadata_display(metadata)
+        
+        # Callback for external listeners
+        if self._metadata_callback:
+            self._metadata_callback(metadata)
+    
+    # ------------------------------------------------------------------------
+    # PRIVATE METHODS - PIPELINE SETUP
+    # ------------------------------------------------------------------------
+    
+    def _get_fft_size(self) -> int:
+        """Get current or pending FFT size."""
+        if hasattr(self.main, 'fft_widget'):
+            return self.main.fft_widget.get_settings().get('fft_size', 1024)
+        return 1024
+    
+    def _get_samples_per_block(self) -> int:
+        """Get samples per block from hardware."""
+        if self.main.bladerf:
+            return getattr(self.main.bladerf, 'samples_per_block', 8192)
+        return 8192
+    
+    def _create_playback_pipeline(self, samples_per_block: int, fft_size: int) -> None:
+        """
+        Create playback pipeline (ring buffer + FFT processor).
+        
+        Args:
+            samples_per_block: Samples per buffer
+            fft_size: FFT size in bins
+        """
+        self.logger.info("🔄 Creating playback pipeline...")
 
-    def _update_ui_with_playback_info(self):
-        """Actualiza la UI con información del archivo"""
-        if self.main.player is None:
-            self.logger.warning("⚠️ No se puede actualizar UI: player es None")
-            return
-        
-        p = self.main.player
-        playback_freq = p.freq_mhz
-        playback_sr = p.sample_rate
-        
-        self.logger.info(f"📡 Frecuencia archivo: {playback_freq:.1f} MHz")
-        self.logger.info(f"📡 Sample Rate archivo: {playback_sr/1e6:.1f} MHz")
-        
-        # Actualizar widgets de frecuencia
-        self.main.sync_frequency_widgets(playback_freq)
-        
-        # Actualizar rango del plot
-        self.main._update_plot_range_with_sr(playback_freq, playback_sr)
 
-    def _create_playback_pipeline(self, samples_per_block, fft_size):
-        """Crea el pipeline de reproducción"""
-        self.logger.info("🔄 Creando pipeline de reproducción...")
+        # Aumentar significativamente el buffer de reproducción
+        # 512 slots es insuficiente para 6835 bloques/segundo
+        # Calculamos para 2 segundos de buffer
+        blocks_per_second = self.main.player.sample_rate / samples_per_block
+        buffer_seconds = 2  # 2 segundos de buffer
+        num_buffers = max(1024, int(blocks_per_second * buffer_seconds))
         
-        # Ring buffer
+        self.logger.info(f"   Playback buffer: {num_buffers} slots × {samples_per_block} samples")
+        
         self.main.playback_ring_buffer = IQRingBuffer(
-            num_buffers=512,
+            num_buffers=num_buffers,  # Aumentado de 512 a valor calculado
             samples_per_buffer=samples_per_block,
             use_shared_memory=False
         )
+        
+        # Ring buffer
+        '''self.main.playback_ring_buffer = IQRingBuffer(
+            num_buffers=512,
+            samples_per_buffer=samples_per_block,
+            use_shared_memory=False
+        )'''
         
         # FFT processor
         self.main.playback_fft_processor = FFTProcessorZeroCopy(
@@ -383,7 +456,7 @@ class PlaybackController:
             sample_rate=self.main.player.sample_rate
         )
         
-        # Configurar FFT
+        # Configure FFT
         self.main.playback_fft_processor.update_settings({
             'fft_size': fft_size,
             'window': 'Hann',
@@ -392,11 +465,39 @@ class PlaybackController:
             'sample_rate': self.main.player.sample_rate
         })
         
-        # Conectar FFT processor
-        self.main.fft_ctrl.connect_playback_fft_processor(self.main.playback_fft_processor)
-
-    def _update_ui_playback_state(self, playing, filename=None):
-        """Actualiza UI según estado de reproducción."""
+        # Connect to main FFT controller
+        self.main.fft_ctrl.connect_playback_fft_processor(
+            self.main.playback_fft_processor
+        )
+        
+        self.logger.info("✅ Playback pipeline created")
+    
+    def _update_ui_with_playback_info(self) -> None:
+        """Update UI with file metadata."""
+        if self.main.player is None:
+            return
+        
+        p = self.main.player
+        playback_freq = p.freq_mhz
+        playback_sr = p.sample_rate
+        
+        self.logger.info(f"📡 Playback freq: {playback_freq:.1f} MHz")
+        self.logger.info(f"📡 Playback SR: {playback_sr/1e6:.1f} MHz")
+        
+        # Update frequency widgets
+        self.main.sync_frequency_widgets(playback_freq)
+        
+        # Update plot range
+        self.main._update_plot_range_with_sr(playback_freq, playback_sr)
+    
+    def _update_ui_playback_state(self, playing: bool, filename: str = None) -> None:
+        """
+        Update UI based on playback state.
+        
+        Args:
+            playing: True if playing
+            filename: Current file (for status bar)
+        """
         if playing and filename and self.main.player is not None:
             try:
                 file_size_mb = os.path.getsize(filename) / 1e6
@@ -405,112 +506,87 @@ class PlaybackController:
                     duration = self.main.player.metadata.get('duration', 0)
                 
                 self.main.statusbar.showMessage(
-                    f"▶ Reproduciendo: {os.path.basename(filename)} | "
+                    f"▶ Playing: {os.path.basename(filename)} | "
                     f"{file_size_mb:.1f} MB | {duration:.1f} s"
                 )
                 
                 if hasattr(self.main, 'iq_manager'):
                     self.main.iq_manager.update_mode_indicator("play")
             except Exception as e:
-                self.logger.warning(f"Error actualizando UI: {e}")
+                self.logger.warning(f"Error updating UI: {e}")
         else:
-            self.main.statusbar.showMessage("Reproducción detenida")
+            self.main.statusbar.showMessage("Playback stopped")
             if hasattr(self.main, 'iq_manager'):
                 self.main.iq_manager.update_mode_indicator("live")
-
-    def _handle_playback_error(self, error):
-        """Maneja errores de reproducción"""
-        self.logger.error(f"❌ Error en reproducción: {error}")
-        traceback.print_exc()
-        
-        self.stop_playback()
-        
-        QMessageBox.critical(
-            self.main, "Error de Reproducción",
-            f"No se pudo iniciar la reproducción:\n{str(error)}"
-        )
-
-    def stop_playback(self, restore_rx=True):
-        """Detiene la reproducción y opcionalmente restaura configuración RF."""
-        self.logger.info("=" * 50)
-        self.logger.info("🛑 PlaybackController.stop_playback() LLAMADO")
-        
-        try:
-            # Detener player
-            if self.main.player:
-                self.logger.info("   ⏹ Deteniendo player...")
-                self.main.player.stop_playback()
-                if not self.main.player.wait(2000):
-                    self.logger.warning("      ⚠️ Timeout esperando al player")
-                self.main.player.close()
-                self.main.player = None
-                self.logger.info("   ✅ Player detenido")
-            
-            # Detener FFT processor
-            if self.main.playback_fft_processor:
-                self.logger.info("   ⏹ Deteniendo FFT processor...")
-                self.main.playback_fft_processor.stop()
-                self.main.playback_fft_processor = None
-                self.logger.info("   ✅ FFT processor detenido")
-            
-            # Liberar buffer
-            self.main.playback_ring_buffer = None
-            self.logger.info("   ✅ Buffer liberado")
-            
-            # Actualizar estado
-            self.main.is_playing_back = False
-            
-            # Restaurar configuración RF si se solicita
-            if restore_rx and hasattr(self, '_saved_rf_config') and self._saved_rf_config:
-                self.logger.info("   🔄 Restaurando configuración RF...")
-                self.restore_rx_config()
-            
-            # Actualizar UI
-            self._update_ui_playback_state(False)
-            
-            if hasattr(self.main, 'iq_manager'):
-                self.main.iq_manager.set_playback_playing(False)
-                self.main.iq_manager.set_playback_state(True)
-                self.main.iq_manager.pushButton_play_pause.setText("⏸ PAUSE")
-            
-            # Limpiar waterfall
-            if hasattr(self.main, 'waterfall'):
-                self.main.waterfall.clear()
-            
-            self.main.statusbar.showMessage("⏹ Reproducción detenida", 3000)
-            self.logger.info("✅ Reproducción detenida correctamente")
-            
-        except Exception as e:
-            self.logger.error(f"❌ Error deteniendo reproducción: {e}")
-            traceback.print_exc()
-        
-        self.logger.info("=" * 50)
-
-    def restore_rx_config(self):
-        """Restaura la configuración RF guardada al volver a modo recepción."""
-        if not hasattr(self, '_saved_rf_config') or not self._saved_rf_config:
-            self.logger.info("ℹ️ No hay configuración RF guardada")
+    
+    '''def _restore_rx_config(self) -> None:
+        """Restore saved RF configuration and start live capture."""
+        if not self._saved_rf_config:
+            self.logger.info("ℹ️ No saved RF config to restore")
             return
         
-        self.logger.info("🔄 Restaurando configuración RF guardada...")
+        self.logger.info("🔄 Restoring RF configuration...")
         
         if hasattr(self.main, 'rf_ctrl'):
             self.main.rf_ctrl.update_rf_settings(self._saved_rf_config)
-            self.logger.info(f"✅ Configuración RF restaurada: {self._saved_rf_config['frequency']/1e6:.1f} MHz")
-            self._saved_rf_config = None
+            self.logger.info(f"✅ RF config restored: {self._saved_rf_config['frequency']/1e6:.1f} MHz")
+            self._saved_rf_config = None'''
 
-    # ===== SLOTS DEL PLAYER =====
+    # controller/playback_controller.py - En _restore_rx_config
+
+    def _restore_rx_config(self) -> None:
+        """Restore saved RF configuration and start live capture."""
+        if not self._saved_rf_config:
+            self.logger.info("ℹ️ No saved RF config to restore")
+            return
+        
+        self.logger.info("🔄 Restoring RF configuration...")
+        
+        # Extraer frecuencia guardada
+        saved_freq = self._saved_rf_config.get('frequency', 100e6)
+        self.logger.info(f"   Saved frequency: {saved_freq/1e6:.1f} MHz")
+        
+        # Obtener frecuencia actual del archivo (si existe)
+        playback_freq = None
+        if self.main.player:
+            playback_freq = self.main.player.freq_mhz * 1e6
+            self.logger.info(f"   Playback frequency: {playback_freq/1e6:.1f} MHz")
+        
+        # Restaurar configuración
+        if hasattr(self.main, 'rf_ctrl'):
+            self.main.rf_ctrl.update_rf_settings(self._saved_rf_config)
+            
+            # Verificar que la frecuencia se restauró correctamente
+            if self.main.bladerf:
+                current_freq = self.main.bladerf.frequency
+                self.logger.info(f"   Current frequency after restore: {current_freq/1e6:.1f} MHz")
+                
+                # Si la frecuencia no coincide con la guardada, forzar actualización
+                if abs(current_freq - saved_freq) > 1000:  # 1 kHz de tolerancia
+                    self.logger.warning(f"   Frequency mismatch, forcing to {saved_freq/1e6:.1f} MHz")
+                    self.main.bladerf.set_frequency(saved_freq)
+            
+            self._saved_rf_config = None
     
-    def _on_playback_buffer_ready(self, iq_data):
-        """Slot cuando el player tiene un buffer listo"""
+    # ------------------------------------------------------------------------
+    # PLAYER SIGNAL HANDLERS
+    # ------------------------------------------------------------------------
+    
+    def _on_playback_buffer_ready(self, iq_data: np.ndarray) -> None:
+        """
+        Handle buffer ready from player.
+        
+        Args:
+            iq_data: IQ samples (complex64)
+        """
         try:
             if not self.main.playback_ring_buffer:
                 return
             
             write_buffer = self.main.playback_ring_buffer.get_write_buffer()
-
+            
             if write_buffer is None:
-                self.logger.warning("⚠️ Ring buffer lleno en reproducción")
+                self.logger.warning("⚠️ Ring buffer full in playback")
                 return
             
             min_samples = min(len(write_buffer), len(iq_data))
@@ -518,52 +594,42 @@ class PlaybackController:
             self.main.playback_ring_buffer.commit_write()
             
         except Exception as e:
-            self.logger.error(f"Error en playback buffer ready: {e}")
-
-
+            self.logger.error(f"Error in playback buffer ready: {e}")
     
-    def set_metadata_callback(self, callback):
-        """Registra un callback para recibir metadata."""
-        self._metadata_callback = callback
-        self.logger.info("✅ Callback de metadata registrado")
-
-
-
-    def _on_playback_finished(self):
-        """Manejador cuando el player termina el archivo naturalmente."""
-        self.logger.info("🏁 Reproducción finalizada automáticamente")
+    def _on_playback_finished(self) -> None:
+        """Handle natural end of file."""
+        self.logger.info("🏁 Playback finished naturally")
         
         if hasattr(self.main, 'iq_manager'):
             mgr = self.main.iq_manager
             mgr.set_playback_playing(False)
             mgr.set_playback_state(True)
-            mgr.label_play_status_text.setText("FINALIZADO")
+            mgr.label_play_status_text.setText("FINISHED")
         
         self.main.is_playing_back = False
         self.stop_playback(restore_rx=True)
-
-    def _on_playback_stopped(self):
-        """Manejador de la señal playback_stopped del player."""
-        self.logger.info("🔊 Señal playback_stopped recibida del player")
+    
+    def _on_playback_stopped(self) -> None:
+        """Handle player stopped signal."""
+        self.logger.info("🔊 Playback stopped signal received")
         
         if self.main.is_playing_back:
-            self.logger.info("   → is_playing_back=True, llamando a stop_playback()")
+            self.logger.info("   → Calling stop_playback()")
             self.stop_playback()
-        else:
-            self.logger.info("   → is_playing_back=False, ignorando (ya detenido)")
-
-    def _on_playback_error(self, error_msg):
-        """Manejador de errores en reproducción"""
-        self.logger.error(f"❌ Error en reproducción: {error_msg}")
+    
+    def _on_playback_error(self, error_msg: str) -> None:
+        """Handle playback error."""
+        self.logger.error(f"❌ Playback error: {error_msg}")
         self.main.statusbar.showMessage(f"Error: {error_msg}")
         self.stop_playback()
-
-
-
-    def _on_playback_progress(self, position_bytes, total_bytes):
+    
+    def _on_playback_progress(self, position_bytes: float, total_bytes: float) -> None:
         """
-        Slot de progress_updated del player.
-        Actualiza el slider de progreso y las etiquetas de tiempo.
+        Handle progress update from player.
+        
+        Args:
+            position_bytes: Current position in bytes
+            total_bytes: Total file size in bytes
         """
         if total_bytes <= 0:
             return
@@ -573,17 +639,15 @@ class PlaybackController:
         
         mgr = self.main.iq_manager
         
-        # Calcular ratio (0.0 a 1.0)
+        # Update slider (0-1000 range)
         ratio = position_bytes / total_bytes
-        # Convertir a rango 0-1000 para el slider
         slider_value = int(ratio * 1000)
         
-        # Actualizar slider sin emitir señales para evitar loops
         mgr.horizontalSlider_play.blockSignals(True)
         mgr.horizontalSlider_play.setValue(slider_value)
         mgr.horizontalSlider_play.blockSignals(False)
         
-        # ===== ACTUALIZAR ETIQUETAS DE TIEMPO DIRECTAMENTE =====
+        # Update time labels
         try:
             if self.main.player is None:
                 return
@@ -594,139 +658,60 @@ class PlaybackController:
             
             speed = getattr(self.main.player, 'speed', 1.0)
             
-            # Calcular tiempos (4 bytes por muestra compleja)
+            # 4 bytes per complex sample (int16 I + int16 Q)
             total_seconds = total_bytes / (sr * 4)
             current_seconds = position_bytes / (sr * 4)
             
-            # Tiempo efectivo considerando velocidad
             current_effective = current_seconds / speed if speed > 0 else current_seconds
             total_effective = total_seconds / speed if speed > 0 else total_seconds
             
-            # Actualizar label de estado
             mgr.label_play_status_text.setText(
-                f"REPRODUCIENDO  {current_effective:.1f}s / {total_effective:.1f}s ({speed:.0f}x)"
+                f"PLAYING  {current_effective:.1f}s / {total_effective:.1f}s ({speed:.0f}x)"
             )
             
-            # Actualizar duración total
             if hasattr(mgr, 'label_play_duration'):
                 mgr.label_play_duration.setText(f"{total_effective:.1f} s")
                 
         except Exception as e:
-            self.logger.debug(f"Error actualizando etiquetas de tiempo: {e}")
-
+            self.logger.debug(f"Error updating time labels: {e}")
     
-        
-
-    def _update_time_labels(self, position_bytes, total_bytes, mgr):
-        """
-        Actualiza las etiquetas de tiempo con cálculo correcto.
-        """
-        try:
-            if self.main.player is None:
-                return
-            
-            sr = self.main.player.sample_rate
-            if sr <= 0:
-                sr = 2e6
-            
-            speed = getattr(self.main.player, 'speed', 1.0)
-            
-            # CORRECCIÓN: 4 bytes por muestra compleja
-            total_seconds = total_bytes / (sr * 4)
-            current_seconds = position_bytes / (sr * 4)
-            
-            # Log para verificar valores
-            if not hasattr(self, '_last_debug_log'):
-                self._last_debug_log = 0
-            import time
-            now = time.time()
-            if now - self._last_debug_log > 3:
-                self.logger.debug(
-                    f"⏱️ Tiempos: total_bytes={total_bytes}, sr={sr/1e6:.1f}MHz, "
-                    f"total_sec={total_seconds:.1f}, current_sec={current_seconds:.1f}"
-                )
-                self._last_debug_log = now
-            
-            # Tiempo efectivo considerando velocidad
-            current_effective = current_seconds / speed if speed > 0 else current_seconds
-            total_effective = total_seconds / speed if speed > 0 else total_seconds
-            
-            # Actualizar label de estado
-            mgr.label_play_status_text.setText(
-                f"REPRODUCIENDO  {current_effective:.1f}s / {total_effective:.1f}s ({speed:.0f}x)"
-            )
-            
-            # Actualizar duración total
-            if hasattr(mgr, 'label_play_duration'):
-                mgr.label_play_duration.setText(f"{total_effective:.1f} s")
-                
-        except Exception as e:
-            self.logger.debug(f"Error actualizando etiquetas: {e}")
-
-
-    
-    def _on_playback_started(self):
-        """Señal del player: reproducción iniciada/reanudada."""
-        self.logger.info("🔊 Señal playback_started recibida")
+    def _on_playback_started(self) -> None:
+        """Handle playback started signal."""
+        self.logger.info("🔊 Playback started signal received")
         if hasattr(self.main, 'iq_manager'):
             mgr = self.main.iq_manager
             mgr.set_playback_playing(True)
             mgr.pushButton_play_pause.setText("⏸ PAUSE")
-            mgr.label_play_status_text.setText("REPRODUCIENDO")
-            # Iniciar timer de actualización de slider (respaldo)
-            #mgr.playback_progress_timer.start()
-
-    def _on_playback_paused(self):
-        """Señal del player: reproducción pausada."""
-        self.logger.info("🔊 Señal playback_paused recibida")
+            mgr.label_play_status_text.setText("PLAYING")
+    
+    def _on_playback_paused(self) -> None:
+        """Handle playback paused signal."""
+        self.logger.info("🔊 Playback paused signal received")
         if hasattr(self.main, 'iq_manager'):
             self.main.iq_manager.label_play_status_icon.setText("⏸")
-            self.main.iq_manager.label_play_status_text.setText("PAUSADO")
+            self.main.iq_manager.label_play_status_text.setText("PAUSED")
             self.main.iq_manager.pushButton_play_pause.setText("▶ RESUME")
             self.main.iq_manager.pushButton_play_play.setEnabled(False)
             self.main.iq_manager.pushButton_play_stop.setEnabled(True)
-
-    def pause_playback(self):
-        """Pausa la reproducción actual."""
-        if self.main.player and self.main.is_playing_back:
-            self.logger.info("⏸ Pausando reproducción")
-            self.main.player.pause_playback()
-
-    def resume_playback(self):
-        """Reanuda la reproducción pausada."""
-        if self.main.player and self.main.is_playing_back:
-            self.logger.info("▶ Reanudando reproducción")
-            self.main.player.resume_playback()
-
-    def set_loop_mode(self, enabled: bool):
-        """Activa o desactiva el modo loop."""
-        if self.main.player:
-            self.main.player.loop = enabled
-            self.logger.info(f"🔄 Modo loop: {'activado' if enabled else 'desactivado'}")
-
-
-
-
-    def seek(self, position_bytes):
+    
+    # ------------------------------------------------------------------------
+    # ERROR HANDLING
+    # ------------------------------------------------------------------------
+    
+    def _handle_error(self, error: Exception) -> None:
         """
-        Salta a una posición específica en el archivo.
+        Handle playback errors.
         
         Args:
-            position_bytes: Posición en bytes (debe estar alineada a buffer)
+            error: Exception that occurred
         """
-        if self.main.player is None:
-            self.logger.warning("⚠️ No se puede hacer seek: player no disponible")
-            return
+        self.logger.error(f"❌ Playback error: {error}")
+        traceback.print_exc()
         
-        if not self.main.is_playing_back:
-            # Si no está reproduciendo, igual podemos hacer seek para preparar
-            self.logger.info("🎚️ Seek en modo pausa")
-            self.main.player.seek(position_bytes)
-            # Actualizar UI
-            if hasattr(self.main, 'iq_manager'):
-                ratio = position_bytes / self.main.player.total_bytes if self.main.player.total_bytes > 0 else 0
-                self.main.iq_manager.horizontalSlider_play.setValue(int(ratio * 1000))
-        else:
-            # Si está reproduciendo, delegar al player (que manejará la pausa temporal)
-            self.logger.info(f"🎚️ Seek durante reproducción a {position_bytes} bytes")
-            self.main.player.seek(position_bytes)
+        self.stop_playback()
+        
+        QMessageBox.critical(
+            self.main,
+            "Playback Error",
+            f"Could not start playback:\n{str(error)}"
+        )

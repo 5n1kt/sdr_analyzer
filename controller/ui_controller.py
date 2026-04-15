@@ -79,14 +79,19 @@ class UIController:
         self.main.iq_manager.set_controller(self.main)
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.iq_manager)
 
+        # ===== ARTEMIS DATABASE WIDGET =====
         self.main.artemis_widget = ArtemisWidget(self.main)
         self.main.artemis_widget.setWindowTitle("📡 BASE DE DATOS ARTEMIS")
         self.main.artemis_widget.setObjectName("dock_artemis")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.artemis_widget)
-
+        
+        # Conectar señal de sintonización
         self.main.artemis_widget.signal_selected.connect(
             self.main.on_frequency_changed_from_plot
         )
+        
+        # Conectar señal de carga para guardar configuración
+        self.main.artemis_widget.database_loaded.connect(self._on_artemis_db_loaded)
         
         self.logger.info("✅ Dock widgets configured")
     
@@ -284,7 +289,12 @@ class UIController:
             action = self.main.iq_manager.toggleViewAction()
             action.setText(" Gestor IQ")
             view_menu.addAction(action)
-        
+
+        if hasattr(self.main, 'artemis_widget'):
+            action = self.main.artemis_widget.toggleViewAction()
+            action.setText(" Base de Datos Artemis")
+            view_menu.addAction(action)
+
         # Help Menu
         help_menu = menubar.addMenu("Ayuda")
         
@@ -343,6 +353,13 @@ class UIController:
                             break
                 break
     
+
+    def _on_artemis_db_loaded(self):
+        """Guarda la ruta cuando se carga una base de datos"""
+        if hasattr(self.main, 'config_manager') and hasattr(self.main, 'artemis_widget'):
+            self.main.config_manager._save_artemis_settings(self.main)
+            self.logger.info("💾 Ruta de Artemis DB guardada en configuración")
+
     # ------------------------------------------------------------------------
     # VISUALIZATION SETTINGS
     # ------------------------------------------------------------------------

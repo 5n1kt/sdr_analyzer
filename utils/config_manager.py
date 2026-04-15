@@ -95,6 +95,7 @@ class ConfigManager:
         self._save_viz_settings(controller)
         self._save_window_settings(controller)
         self._save_theme_settings(controller)
+        self._save_artemis_settings(controller)  
         
         self.settings.sync()
         self.logger.info("✅ Configuration saved")
@@ -194,6 +195,21 @@ class ConfigManager:
         self.settings.beginGroup("theme")
         self.settings.setValue("current_theme", controller.theme_manager.current_theme)
         self.settings.endGroup()
+
+
+    def _save_artemis_settings(self, controller) -> None:
+        """Guarda la configuración de Artemis"""
+        if not hasattr(controller, 'artemis_widget'):
+            return
+        
+        self.settings.beginGroup("artemis")
+        
+        # Guardar ruta de la base de datos
+        if hasattr(controller.artemis_widget, 'base_path') and controller.artemis_widget.base_path:
+            self.settings.setValue("database_path", controller.artemis_widget.base_path)
+            self.logger.debug(f"   Artemis DB path saved: {controller.artemis_widget.base_path}")
+        
+        self.settings.endGroup()
     
     # ------------------------------------------------------------------------
     # LOAD CONFIGURATION
@@ -225,6 +241,7 @@ class ConfigManager:
         self._load_viz_settings(controller)
         self._load_window_settings(controller)
         self._load_theme_settings(controller)
+        self._load_artemis_settings(controller) 
         
         self.logger.info("✅ Configuration loaded")
         return True
@@ -436,6 +453,24 @@ class ConfigManager:
             )
         
         self.logger.debug(f"   Theme loaded: {theme_key}")
+
+    def _load_artemis_settings(self, controller) -> None:
+        """Carga la configuración de Artemis"""
+        if not hasattr(controller, 'artemis_widget'):
+            return
+        
+        self.settings.beginGroup("artemis")
+        
+        # Cargar ruta de la base de datos (NO cargar automáticamente)
+        db_path = self.settings.value("database_path", "", type=str)
+        if db_path and os.path.exists(db_path) and os.path.exists(os.path.join(db_path, "static")):
+            controller.artemis_widget.base_path = db_path
+            self.logger.info(f"📂 Ruta de Artemis DB cargada: {db_path}")
+            # NOTA: NO llamamos a load_database() aquí
+        else:
+            self.logger.debug("   No se encontró ruta válida de Artemis DB")
+        
+        self.settings.endGroup()
     
     # ------------------------------------------------------------------------
     # UTILITY METHODS

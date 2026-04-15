@@ -190,6 +190,7 @@ class ArtemisLoaderThread(QThread):
 
 class ArtemisWidget(QDockWidget):
     signal_selected = pyqtSignal(float)
+    database_loaded = pyqtSignal()  # NUEVA SEÑAL para notificar cambio
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -202,9 +203,10 @@ class ArtemisWidget(QDockWidget):
         self.current_signal = None
         self.loader = None
         self.base_path = ""
+        self._loading_in_progress = False 
         
         self.setup_ui()
-        self.setup_connections()  # <-- ESTE MÉTODO DEBE EXISTIR
+        self.setup_connections()  
         
         # Estado inicial: TODO BLOQUEADO excepto botón de carga
         self.set_controls_enabled(False)
@@ -268,6 +270,11 @@ class ArtemisWidget(QDockWidget):
         self.textEdit_bandwidths.setEnabled(enabled)
         self.textEdit_description.setEnabled(enabled)
         self.tabWidget.setEnabled(enabled)
+
+        # Forzar actualización visual de los widgets habilitados/deshabilitados
+        if enabled:
+            self.listWidget_signals.repaint()
+            self.comboBox_category.repaint()
     
     def load_database(self):
         """Carga la base de datos desde una carpeta seleccionada"""
@@ -303,6 +310,39 @@ class ArtemisWidget(QDockWidget):
         self.loader.finished.connect(self.on_load_finished)
         self.loader.error.connect(self.on_load_error)
         self.loader.start()
+
+    def auto_load_from_config(self, db_path: str):
+        """
+        Carga la base de datos desde una ruta de configuración.
+        Llamado SOLO UNA VEZ desde config_manager después de cargar la configuración.
+        """
+        if self._loading_in_progress:
+            self.logger.warning("⚠️ Carga ya en progreso, ignorando...")
+            return
+        
+        if not db_path or not os.path.exists(db_path):
+            self.logger.warning(f"⚠️ Ruta no válida: {db_path}")
+            return
+        
+        if not os.path.exists(os.path.join(db_path, "static")):
+            self.logger.warning(f"⚠️ Ruta no contiene carpeta 'static': {db_path}")
+            return
+        
+        self.base_path = db_path
+        self._loading_in_progress = True
+        self.pushButton_load.setEnabled(False)
+        self.progressBar.setVisible(True)
+        self.listWidget_signals.clear()
+        
+        self.label_signal_name.setText("📡 Cargando base de datos...")
+        self.label_count.setText("Cargando señales...")
+        QApplication.processEvents()
+        
+        self.loader = ArtemisLoaderThread(db_path)
+        self.loader.progress.connect(self.update_progress)
+        self.loader.finished.connect(self.on_load_finished)
+        self.loader.error.connect(self.on_load_error)
+        self.loader.start()
     
     def refresh_database(self):
         if self.base_path:
@@ -317,12 +357,15 @@ class ArtemisWidget(QDockWidget):
         """Finaliza la carga y actualiza la UI"""
         self.signals = signals
         self.filtered_signals = signals
+        self.all_categories = categories  # Guardar para refrescos
         
         # Actualizar combo de categorías
+        self.comboBox_category.blockSignals(True)
         self.comboBox_category.clear()
         self.comboBox_category.addItem("📋 TODAS")
         for cat in categories:
             self.comboBox_category.addItem(cat)
+        self.comboBox_category.blockSignals(False)
         
         # Actualizar lista de señales
         self.update_list()
@@ -337,15 +380,36 @@ class ArtemisWidget(QDockWidget):
         # Desbloquear todos los controles
         self.set_controls_enabled(True)
         
-        # Seleccionar primera señal automáticamente si hay alguna
+        # Forzar actualización de todos los widgets
+        self.listWidget_signals.repaint()
+        self.comboBox_category.repaint()
+        self.label_count.repaint()
+        self.label_signal_name.repaint()
+        
+        # Seleccionar primera señal automáticamente
         if self.listWidget_signals.count() > 0:
             self.listWidget_signals.setCurrentRow(0)
-            # Forzar actualización de la selección
+            QApplication.processEvents()
             self.on_signal_selected()
         
-        # Forzar repaint completo
+        # Forzar refresco completo adicional
+        self.force_refresh()
+        
+        # Forzar repaint del widget completo y sus padres
         self.repaint()
+        self.update()
+        
+        if self.parent():
+            self.parent().repaint()
+            self.parent().update()
+        
+        # Procesar eventos pendientes
         QApplication.processEvents()
+        QApplication.sendPostedEvents()
+        
+        # NOTIFICAR QUE SE CARGÓ
+        self._loading_in_progress = False
+        self.database_loaded.emit()
         
         self.logger.info(f"✅ Base de datos Artemis cargada: {len(signals)} señales")
     
@@ -384,6 +448,7 @@ class ArtemisWidget(QDockWidget):
     
     def update_list(self):
         """Actualiza la lista de señales"""
+        self.listWidget_signals.blockSignals(True)
         self.listWidget_signals.clear()
         
         for sig in self.filtered_signals:
@@ -402,8 +467,11 @@ class ArtemisWidget(QDockWidget):
                     f"🏷️ {', '.join(cats[:2]) if cats else 'Sin categoría'}"
                 )
         
+        self.listWidget_signals.blockSignals(False)
+        
         # Forzar actualización visual
         self.listWidget_signals.repaint()
+        self.listWidget_signals.update()
         QApplication.processEvents()
     
     def clear_search(self):
@@ -568,3 +636,43 @@ class ArtemisWidget(QDockWidget):
             self.loader.terminate()
             self.loader.wait(1000)
         event.accept()
+
+
+    # widgets/artemis_widget.py - Añadir método force_refresh
+
+    def force_refresh(self):
+        """Fuerza un refresco completo de la UI"""
+        if not self.signals:
+            return
+        
+        # Refrescar lista
+        self.update_list()
+        
+        # Refrescar combo de categorías
+        current_cat = self.comboBox_category.currentText()
+        self.comboBox_category.blockSignals(True)
+        self.comboBox_category.clear()
+        self.comboBox_category.addItem("📋 TODAS")
+        for cat in self.all_categories:
+            self.comboBox_category.addItem(cat)
+        # Restaurar selección
+        index = self.comboBox_category.findText(current_cat)
+        if index >= 0:
+            self.comboBox_category.setCurrentIndex(index)
+        else:
+            self.comboBox_category.setCurrentIndex(0)
+        self.comboBox_category.blockSignals(False)
+        
+        # Refrescar contador
+        self.label_count.setText(f"{len(self.filtered_signals)} / {len(self.signals)} señales")
+        
+        # Si hay señal seleccionada, refrescar detalles
+        if self.current_signal:
+            self.on_signal_selected()
+        
+        # Forzar repaint
+        self.repaint()
+        self.update()
+        QApplication.processEvents()
+        
+        self.logger.debug("🔄 UI refrescada manualmente")

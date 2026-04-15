@@ -4,6 +4,7 @@
 # =======================================================================
 # IMPORTS
 # =======================================================================
+import os
 import logging
 import traceback
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QHBoxLayout, QFileDialog
@@ -95,6 +96,14 @@ class MainController(QMainWindow):
         # Cargar configuración
         self.config_manager.load_all_settings(self)
 
+
+        # AHORA, después de cargar la configuración, intentar cargar Artemis
+        if hasattr(self, 'artemis_widget') and hasattr(self.artemis_widget, 'auto_load_from_config'):
+            db_path = self.config_manager.settings.value("artemis/database_path", "", type=str)
+            if db_path and os.path.exists(db_path):
+                self.artemis_widget.auto_load_from_config(db_path)
+                self.logger.info(f"🔄 Cargando Artemis DB desde configuración: {db_path}")
+
         if hasattr(self, 'playback_ctrl') and hasattr(self, 'iq_manager'):
             #self.playback_ctrl.set_metadata_callback(self.iq_manager._on_playback_metadata)
             self.playback_ctrl.set_metadata_callback(self.iq_manager.update_metadata_display)
@@ -171,6 +180,11 @@ class MainController(QMainWindow):
         if hasattr(self, 'viz_widget'):
             self.viz_widget.set_main_controller(self)
             self.logger.info("🔗 VisualizationWidget conectado al MainController")
+
+
+        if hasattr(self, 'artemis_widget'):
+            self.artemis_widget.database_loaded.connect(self._on_artemis_db_loaded)
+            self.logger.info("🔗 ArtemisWidget conectado para guardar configuración")
 
     # -----------------------------------------------------------------------
     # MÉTODOS DELEGADOS A SUBCONTROLADORES
@@ -495,3 +509,10 @@ class MainController(QMainWindow):
             self.logger.error(f"Error durante el cierre: {e}")
             traceback.print_exc()
             event.accept()
+
+
+    def _on_artemis_db_loaded(self):
+        """Guarda la ruta de Artemis DB cuando se carga una nueva base de datos"""
+        if hasattr(self, 'config_manager'):
+            self.config_manager._save_artemis_settings(self)
+            self.logger.info("💾 Ruta de Artemis DB guardada en configuración")

@@ -26,6 +26,8 @@ from widgets.spectrum_plot import SpectrumPlot
 from widgets.iq_manager_widget import IQManagerWidget
 from widgets.frequency_spinner import FrequencySpinner
 
+from widgets.artemis_widget import ArtemisWidget
+
 
 # ============================================================================
 # UI CONTROLLER
@@ -76,6 +78,15 @@ class UIController:
         self.main.iq_manager = IQManagerWidget(self.main)
         self.main.iq_manager.set_controller(self.main)
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.iq_manager)
+
+        self.main.artemis_widget = ArtemisWidget(self.main)
+        self.main.artemis_widget.setWindowTitle("📡 BASE DE DATOS ARTEMIS")
+        self.main.artemis_widget.setObjectName("dock_artemis")
+        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.artemis_widget)
+
+        self.main.artemis_widget.signal_selected.connect(
+            self.main.on_frequency_changed_from_plot
+        )
         
         self.logger.info("✅ Dock widgets configured")
     

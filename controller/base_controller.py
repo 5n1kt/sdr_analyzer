@@ -446,7 +446,7 @@ class MainController(QMainWindow):
                 "<li>Persistencia de configuración</li>"
                 "<li>Soporte para perfiles exportables</li>"
                 "</ul>"
-                "<p><b>Desarrollado para:</b> INIDETEC - DCD</p>"
+                "<p><b>Desarrollado para:</b> ININDETEC - DCD</p>"
             )
             
             QMessageBox.about(self, "Acerca de SIMANEEM", info)

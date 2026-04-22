@@ -23,6 +23,8 @@ from widgets.spectrum_plot import SpectrumPlot
 from widgets.iq_manager_widget import IQManagerWidget
 from widgets.frequency_spinner import FrequencySpinner
 
+from widgets.tscm_widget import TSCMWidget
+
 from workers.shared_buffer import IQRingBuffer
 from workers.iq_processor_zerocopy import IQProcessorZeroCopy
 from workers.fft_processor_zerocopy import FFTProcessorZeroCopy
@@ -38,6 +40,9 @@ from controller.ui_controller import UIController
 from controller.frequency_controller import FrequencyController
 from controller.detector_controller import DetectorController
 from controller.audio_controller import AudioController
+
+from controller.tscm_controller import TSCMController
+
 
 from utils.theme_manager import ThemeManager
 from utils.config_manager import ConfigManager
@@ -167,6 +172,9 @@ class MainController(QMainWindow):
         # Audio Controller
         self.audio_ctrl = AudioController(self)
         
+        # TSCM Controller
+        self.tscm_ctrl = TSCMController(self)
+        
         self.logger.info("✅ Subcontroladores inicializados")
     
     def _setup_ui(self):
@@ -175,6 +183,8 @@ class MainController(QMainWindow):
         self.ui_ctrl.setup_plots()
         self.ui_ctrl.setup_menu()
         self.ui_ctrl.setup_connections()
+
+        self._connect_tscm_signals()
 
         # Conectar VisualizationWidget al controlador
         if hasattr(self, 'viz_widget'):
@@ -185,6 +195,53 @@ class MainController(QMainWindow):
         if hasattr(self, 'artemis_widget'):
             self.artemis_widget.database_loaded.connect(self._on_artemis_db_loaded)
             self.logger.info("🔗 ArtemisWidget conectado para guardar configuración")
+
+        # TSCM Widget
+        self.tscm_widget = TSCMWidget(self)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.tscm_widget)
+        
+        # Conectar TSCM Controller con su Widget
+        self.tscm_ctrl.set_widget(self.tscm_widget)
+        
+        # Conectar FFTController con TSCMController
+        if hasattr(self, 'fft_ctrl'):
+            self.fft_ctrl.set_tscm_controller(self.tscm_ctrl)
+
+
+
+    # En base_controller.py, dentro de _setup_ui() o similar
+
+    def _setup_tscm_connections(self):
+        """Conecta las señales TSCM entre el widget FFT y el controlador FFT."""
+        self.logger.info("🔗 Configurando conexiones TSCM...")
+        
+        if hasattr(self, 'fft_ctrl') and hasattr(self, 'fft_widget'):
+            self.fft_ctrl.connect_fft_widget_signals()
+            self.logger.info("✅ Conexiones TSCM establecidas")
+        else:
+            self.logger.error("❌ No se pudo conectar TSCM: fft_ctrl o fft_widget no existen")
+
+    def _connect_tscm_signals(self):
+        """Conecta las señales TSCM entre FFTControlsWidget y FFTController."""
+        self.logger.info("=" * 60)
+        self.logger.info("🔗 Conectando señales TSCM...")
+        
+        if hasattr(self, 'fft_ctrl') and hasattr(self, 'fft_widget'):
+            self.logger.info(f"   fft_ctrl: {type(self.fft_ctrl).__name__}")
+            self.logger.info(f"   fft_widget: {type(self.fft_widget).__name__}")
+            
+            # Verificar que el controlador tiene el método
+            if hasattr(self.fft_ctrl, 'connect_fft_widget_signals'):
+                self.fft_ctrl.connect_fft_widget_signals()
+                self.logger.info("✅ Conexiones TSCM establecidas")
+            else:
+                self.logger.error("❌ fft_ctrl NO tiene método connect_fft_widget_signals")
+        else:
+            self.logger.error("❌ fft_ctrl o fft_widget no existen")
+            self.logger.info(f"   fft_ctrl existe: {hasattr(self, 'fft_ctrl')}")
+            self.logger.info(f"   fft_widget existe: {hasattr(self, 'fft_widget')}")
+        
+        self.logger.info("=" * 60)
 
     # -----------------------------------------------------------------------
     # MÉTODOS DELEGADOS A SUBCONTROLADORES

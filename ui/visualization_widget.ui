@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>423</width>
-    <height>450</height>
+    <height>662</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -255,22 +255,6 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="groupBox">
-         <property name="title">
-          <string/>
-         </property>
-         <layout class="QGridLayout" name="gridLayout">
-          <item row="0" column="0">
-           <widget class="QCheckBox" name="checkBox_show_bands">
-            <property name="text">
-             <string>Mostrar Band Plan</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
         <widget class="QGroupBox" name="groupBox_actions">
          <property name="title">
           <string>ACCIONES</string>
@@ -334,6 +318,22 @@
          <property name="text">
           <string>🎨 PROBAR COLORES</string>
          </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox">
+         <property name="title">
+          <string/>
+         </property>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="checkBox_show_bands">
+            <property name="text">
+             <string>Mostrar Band Plan</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </item>
        <item>

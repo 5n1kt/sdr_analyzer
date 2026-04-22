@@ -33,18 +33,31 @@ class FFTController:
     def __init__(self, main_controller):
         self.main = main_controller
         self.logger = logging.getLogger(f"{__name__}.FFTController")
+
+        # Referencia al controlador TSCM
+        self._tscm_controller = None
         
         # Buffer for spectrum persistence
         self._prev_spectrum = None
         
         # Periodic logging counter (every 300 frames ≈ 10s at 30fps)
         self._log_frame_counter = 0
-        self._LOG_EVERY_N = 300
-    
+        self._LOG_EVERY_N = 300    
+
     # ------------------------------------------------------------------------
     # CONNECTION METHODS
     # ------------------------------------------------------------------------
     
+    def set_tscm_controller(self, tscm_controller):
+        """
+        Establece la referencia al TSCMController.
+        
+        Args:
+            tscm_controller: Instancia de TSCMController
+        """
+        self._tscm_controller = tscm_controller
+        self.logger.info("✅ TSCMController vinculado a FFTController")
+
     def connect_fft_processor(self, processor) -> None:
         """
         Connect a live capture FFT processor.
@@ -201,14 +214,10 @@ class FFTController:
     # ------------------------------------------------------------------------
     # SPECTRUM UPDATE
     # ------------------------------------------------------------------------
-    
+    # controller/fft_controller.py
+
     def update_spectrum(self, fft_data: np.ndarray) -> None:
-        """
-        Update all visualizations with new FFT frame.
-        
-        Applies persistence (EMA), updates max/min hold, and refreshes
-        spectrum plot and waterfall.
-        """
+        """Update all visualizations with new FFT frame."""
         try:
             sample_rate, center_freq_hz = self._get_current_parameters()
             
@@ -222,16 +231,7 @@ class FFTController:
                 fft_size,
             )
             
-            # Periodic logging of frequency axis
-            self._log_frame_counter += 1
-            if self._log_frame_counter >= self._LOG_EVERY_N:
-                self._log_frame_counter = 0
-                self.logger.info(
-                    f"📊 X-axis: {freq_axis_mhz[0]:.1f} – {freq_axis_mhz[-1]:.1f} MHz "
-                    f"(SR={sample_rate_mhz:.1f} MHz)"
-                )
-            
-            # Apply persistence (EMA)
+            # Aplicar persistencia normal
             p = float(getattr(self.main, 'persistence_factor', 0.0))
             alpha = 1.0 - float(np.clip(p, 0.0, 0.99))
             
@@ -246,28 +246,64 @@ class FFTController:
             
             self._prev_spectrum = displayed.copy()
             
-            # Update waterfall
-            self._update_waterfall(
-                displayed, freq_axis_mhz, center_freq_mhz, sample_rate_mhz,
-                alpha=alpha,
-            )
-            
-            # Update max/min hold (raw data without smoothing)
+            # Actualizar max/min hold
             if getattr(self.main, 'reset_max_min_flag', False):
                 self.main.reset_max_min_flag = False
-                self.logger.info("🔄 Resetting max/min buffers")
                 self.main.max_hold = fft_data.copy()
                 self.main.min_hold = fft_data.copy()
             else:
                 self._update_hold_buffers(fft_data, fft_size)
             
-            # Update spectrum plot
-            self._update_spectrum_plot(displayed, freq_axis_mhz)
+            # --- INTEGRACIÓN TSCM ---
+            baseline_to_plot = None
+            if self._tscm_controller and self._tscm_controller.is_diff_mode_active():
+                plot_spectrum, baseline_to_plot = self._tscm_controller.process_spectrum(
+                    displayed, freq_axis_mhz
+                )
+                plot_max = None
+                plot_min = None
+            else:
+                plot_spectrum = displayed
+                plot_max = self.main.max_hold if self.main.plot_max else None
+                plot_min = self.main.min_hold if self.main.plot_min else None
+            # -------------------------
+            
+            # Actualizar waterfall
+            self._update_waterfall(
+                plot_spectrum, freq_axis_mhz, center_freq_mhz, sample_rate_mhz,
+                alpha=alpha,
+            )
+            
+            # Actualizar spectrum plot
+            if hasattr(self.main, 'spectrum_plot'):
+                if baseline_to_plot is not None:
+                    self.main.spectrum_plot.update_plot_with_baseline(
+                        plot_spectrum, freq_axis_mhz,
+                        max_hold=plot_max, min_hold=plot_min,
+                        baseline=baseline_to_plot
+                    )
+                else:
+                    self.main.spectrum_plot.update_plot(
+                        plot_spectrum, freq_axis_mhz,
+                        max_hold=plot_max, min_hold=plot_min
+                    )
+            
             self._update_plot_range(center_freq_mhz, sample_rate_mhz)
+            
+            # Log periódico
+            self._log_frame_counter += 1
+            if self._log_frame_counter >= self._LOG_EVERY_N:
+                self._log_frame_counter = 0
+                self.logger.info(
+                    f"📊 X-axis: {freq_axis_mhz[0]:.1f} – {freq_axis_mhz[-1]:.1f} MHz "
+                    f"(SR={sample_rate_mhz:.1f} MHz)"
+                )
             
         except Exception as exc:
             self.logger.error(f"Error updating graphics: {exc}")
+            import traceback
             traceback.print_exc()
+
     
     def _get_current_parameters(self) -> tuple:
         """Get current sample rate and center frequency."""

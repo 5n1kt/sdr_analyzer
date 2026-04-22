@@ -5,3 +5,9 @@ __pycache__/
 
 # Logs
 *.log
+
+recordings/*
+!recordings/.gitkeep
+
+profiles/
+logs/

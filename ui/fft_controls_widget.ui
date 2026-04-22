@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>350</width>
-    <height>250</height>  <!-- Reducido de 350 a 250 -->
+    <height>484</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,8 +30,6 @@
     <property name="bottomMargin">
      <number>8</number>
     </property>
-    
-    <!-- ===== GRUPO PARÁMETROS BÁSICOS ===== -->
     <item>
      <widget class="QGroupBox" name="groupBox_basic">
       <property name="title">
@@ -56,7 +54,6 @@
        <property name="verticalSpacing">
         <number>4</number>
        </property>
-       
        <item row="0" column="0">
         <widget class="QLabel" name="label_fft_size">
          <property name="text">
@@ -65,13 +62,8 @@
         </widget>
        </item>
        <item row="0" column="1">
-        <widget class="QComboBox" name="comboBox_fft_size">
-         <property name="minimumWidth">
-          <number>120</number>
-         </property>
-        </widget>
+        <widget class="QComboBox" name="comboBox_fft_size"/>
        </item>
-       
        <item row="1" column="0">
         <widget class="QLabel" name="label_window">
          <property name="text">
@@ -80,17 +72,11 @@
         </widget>
        </item>
        <item row="1" column="1">
-        <widget class="QComboBox" name="comboBox_window_type">
-         <property name="minimumWidth">
-          <number>120</number>
-         </property>
-        </widget>
+        <widget class="QComboBox" name="comboBox_window_type"/>
        </item>
       </layout>
      </widget>
     </item>
-    
-    <!-- ===== GRUPO PROMEDIADO ===== -->
     <item>
      <widget class="QGroupBox" name="groupBox_averaging">
       <property name="title">
@@ -115,7 +101,6 @@
        <property name="verticalSpacing">
         <number>4</number>
        </property>
-       
        <item row="0" column="0">
         <widget class="QLabel" name="label_averaging">
          <property name="text">
@@ -155,22 +140,19 @@
          </property>
         </widget>
        </item>
-       
        <item row="1" column="0" colspan="3">
         <widget class="QLabel" name="label_averaging_info">
-         <property name="text">
-          <string>Más promedios = menor ruido</string>
-         </property>
          <property name="styleSheet">
           <string notr="true">color: #888888; font-size: 8pt;</string>
+         </property>
+         <property name="text">
+          <string>Más promedios = menor ruido</string>
          </property>
         </widget>
        </item>
       </layout>
      </widget>
     </item>
-    
-    <!-- ===== GRUPO OVERLAP ===== -->
     <item>
      <widget class="QGroupBox" name="groupBox_overlap">
       <property name="title">
@@ -195,7 +177,6 @@
        <property name="verticalSpacing">
         <number>4</number>
        </property>
-       
        <item row="0" column="0">
         <widget class="QLabel" name="label_overlap">
          <property name="text">
@@ -235,23 +216,21 @@
          </property>
         </widget>
        </item>
-       
        <item row="1" column="0" colspan="3">
         <widget class="QLabel" name="label_overlap_info">
-         <property name="text">
-          <string>Mayor overlap = más FPS</string>
-         </property>
          <property name="styleSheet">
           <string notr="true">color: #888888; font-size: 8pt;</string>
+         </property>
+         <property name="text">
+          <string>Mayor overlap = más FPS</string>
          </property>
         </widget>
        </item>
       </layout>
      </widget>
     </item>
-    
-    <!-- ===== ESPACIADOR FINAL ===== -->
     <item>
+     
      <spacer name="verticalSpacer">
       <property name="orientation">
        <enum>Qt::Vertical</enum>
@@ -264,7 +243,6 @@
       </property>
      </spacer>
     </item>
-    
    </layout>
   </widget>
  </widget>

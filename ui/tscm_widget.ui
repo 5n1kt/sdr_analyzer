@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DockWidget</class>
+ <widget class="QDockWidget" name="DockWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>320</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>🔴 HERRAMIENTA TSCM (Δ)</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QVBoxLayout" name="verticalLayout_main">
+    <property name="spacing">
+     <number>6</number>
+    </property>
+    <property name="leftMargin">
+     <number>8</number>
+    </property>
+    <property name="topMargin">
+     <number>8</number>
+    </property>
+    <property name="rightMargin">
+     <number>8</number>
+    </property>
+    <property name="bottomMargin">
+     <number>8</number>
+    </property>
+    
+    <!-- Estado -->
+    <item>
+     <widget class="QLabel" name="label_baseline_status">
+      <property name="text">
+       <string>⚪ Sin Baseline Capturada</string>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">font-weight: bold; padding: 8px; background-color: #2a2a2a; border-radius: 4px;</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+    
+    <!-- Botones de Baseline -->
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_baseline">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="pushButton_capture_baseline">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>32</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>📸 CAPTURAR BASELINE</string>
+        </property>
+        <property name="toolTip">
+         <string>Captura el espectro actual como referencia de ambiente RF normal</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_clear_baseline">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>32</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>🗑️</string>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>40</width>
+          <height>32</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Eliminar baseline capturada</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    
+    <!-- Separador -->
+    <item>
+     <widget class="Line" name="line_separator_1">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+    </item>
+    
+    <!-- Botón Modo Diferencias -->
+    <item>
+     <widget class="QPushButton" name="pushButton_diff_mode">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>36</height>
+       </size>
+      </property>
+      <property name="text">
+       <string>🔴 ACTIVAR MODO DIFERENCIAS</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <property name="checked">
+       <bool>false</bool>
+      </property>
+      <property name="toolTip">
+       <string>Activa el análisis diferencial: solo muestra señales nuevas vs la baseline</string>
+      </property>
+     </widget>
+    </item>
+    
+    <!-- Parámetros -->
+    <item>
+     <layout class="QFormLayout" name="formLayout_params">
+      <property name="horizontalSpacing">
+       <number>8</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>4</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_threshold">
+        <property name="text">
+         <string>Umbral de Alerta:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QDoubleSpinBox" name="doubleSpinBox_threshold">
+        <property name="decimals">
+         <number>1</number>
+        </property>
+        <property name="minimum">
+         <double>0.5</double>
+        </property>
+        <property name="maximum">
+         <double>30.0</double>
+        </property>
+        <property name="value">
+         <double>4.0</double>
+        </property>
+        <property name="suffix">
+         <string> dB</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_dwell">
+        <property name="text">
+         <string>Confirmación:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSpinBox" name="spinBox_dwell">
+        <property name="minimum">
+         <number>50</number>
+        </property>
+        <property name="maximum">
+         <number>1000</number>
+        </property>
+        <property name="value">
+         <number>200</number>
+        </property>
+        <property name="singleStep">
+         <number>50</number>
+        </property>
+        <property name="suffix">
+         <string> ms</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    
+    <!-- Separador -->
+    <item>
+     <widget class="Line" name="line_separator_2">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+    </item>
+    
+    <!-- Estadísticas -->
+    <item>
+     <widget class="QGroupBox" name="groupBox_stats">
+      <property name="title">
+       <string>📊 ESTADÍSTICAS</string>
+      </property>
+      <layout class="QFormLayout" name="formLayout_stats">
+       <property name="horizontalSpacing">
+        <number>8</number>
+       </property>
+       <property name="verticalSpacing">
+        <number>2</number>
+       </property>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_active_alerts_title">
+         <property name="text">
+          <string>Alertas activas:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="label_active_alerts">
+         <property name="text">
+          <string>0</string>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">font-weight: bold; color: #00ff00;</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_last_detection_title">
+         <property name="text">
+          <string>Última detección:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLabel" name="label_last_detection">
+         <property name="text">
+          <string>--:--:--</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_frequencies_title">
+         <property name="text">
+          <string>Frecuencias:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLabel" name="label_frequencies">
+         <property name="text">
+          <string>-</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    
+    <!-- Opciones adicionales -->
+    <item>
+     <widget class="QCheckBox" name="checkBox_sound_alert">
+      <property name="text">
+       <string>🔊 Sonido de alerta</string>
+      </property>
+      <property name="checked">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+    
+    <item>
+     <widget class="QPushButton" name="pushButton_export_log">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>28</height>
+       </size>
+      </property>
+      <property name="text">
+       <string>📤 EXPORTAR LOG DE ALERTAS</string>
+      </property>
+     </widget>
+    </item>
+    
+    <!-- Espaciador -->
+    <item>
+     <spacer name="verticalSpacer">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

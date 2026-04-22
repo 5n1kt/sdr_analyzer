@@ -27,7 +27,6 @@ class FFTControlsWidget(QDockWidget):
     # SIGNALS
     # ------------------------------------------------------------------------
     settings_changed = pyqtSignal(dict)
-    
     # ------------------------------------------------------------------------
     # CONSTRUCTOR
     # ------------------------------------------------------------------------
@@ -51,8 +50,7 @@ class FFTControlsWidget(QDockWidget):
         
         # Internal state for averaging tracking
         self._target_averaging = 1
-        self._actual_averaging = 1
-    
+        self._actual_averaging = 1  
     # ------------------------------------------------------------------------
     # UI CONFIGURATION
     # ------------------------------------------------------------------------
@@ -106,7 +104,6 @@ class FFTControlsWidget(QDockWidget):
         self.comboBox_window_type.currentIndexChanged.connect(self.on_setting_changed)
         self.horizontalSlider_averaging.valueChanged.connect(self.on_setting_changed)
         self.horizontalSlider_overlap.valueChanged.connect(self.on_setting_changed)
-    
     # ------------------------------------------------------------------------
     # PUBLIC METHODS - STATE CONTROL
     # ------------------------------------------------------------------------

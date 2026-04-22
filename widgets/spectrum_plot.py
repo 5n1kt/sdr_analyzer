@@ -295,6 +295,8 @@ class SpectrumPlot(QObject):
         self.info_text = None
         self.grid = None
         self.viewbox = None
+
+        self.baseline_curve = None
         
         # Data
         self.current_spectrum = None
@@ -401,6 +403,14 @@ class SpectrumPlot(QObject):
         
         # Set initial background
         self.set_background_color(self.BACKGROUND_DARK)
+
+        # Curva para Baseline (TSCM)
+        self.baseline_curve = self.plot_widget.plot(
+            [], 
+            pen=pg.mkPen(color=(128, 128, 128, 150), width=1.5, style=Qt.DashLine),
+            name="Baseline"
+        )
+        self.baseline_curve.setVisible(False)
     
     def setup_detector_lines(self) -> None:
         """Create threshold and noise floor lines."""
@@ -636,6 +646,46 @@ class SpectrumPlot(QObject):
         elif hasattr(self.main_window, 'frequency_spinner'):
             return self.main_window.frequency_spinner.frequency_mhz
         return 100.0
+    
+    def update_plot_with_baseline(self, spectrum, frequencies, max_hold=None, min_hold=None, baseline=None):
+        """Actualiza el plot con soporte para baseline."""
+        # Actualizar curva principal
+        self.curve.setData(frequencies, spectrum)
+        
+        # Actualizar Max/Min
+        if self.max_hold_enabled and max_hold is not None:
+            self.max_curve.setData(frequencies, max_hold)
+            self.max_curve.setVisible(True)
+        else:
+            self.max_curve.setVisible(False)
+            
+        if self.min_hold_enabled and min_hold is not None:
+            self.min_curve.setData(frequencies, min_hold)
+            self.min_curve.setVisible(True)
+        else:
+            self.min_curve.setVisible(False)
+        
+        # Actualizar Baseline
+        if baseline is not None and len(baseline) == len(frequencies):
+            if not hasattr(self, 'baseline_curve') or self.baseline_curve is None:
+                self.baseline_curve = self.plot_widget.plot(
+                    [], 
+                    pen=pg.mkPen(color=(128, 128, 128, 180), width=1.5, style=Qt.DashLine),
+                    name="Baseline"
+                )
+            self.baseline_curve.setData(frequencies, baseline)
+            self.baseline_curve.setVisible(True)
+        elif hasattr(self, 'baseline_curve') and self.baseline_curve is not None:
+            self.baseline_curve.setVisible(False)
+        
+        # Actualizar marcador
+        if not self.freq_marker.dragging:
+            center_freq = self._get_initial_frequency()
+            self.freq_marker.set_frequency(center_freq)
+            power = self._get_power_at_frequency(center_freq)
+            self.freq_marker.set_power(power)
+
+
     
     # ------------------------------------------------------------------------
     # HOLD CURVES

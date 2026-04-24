@@ -429,10 +429,15 @@ class IQManagerWidget(QDockWidget):
         if self.recorder and self.recorder.is_recording:
             self.recorder.stop_recording()
     
-    def _on_recorder_started(self, filename: str) -> None:
+    '''def _on_recorder_started(self, filename: str) -> None:
         """Handle recorder started signal."""
         self.label_record_filename.setText(os.path.basename(filename))
         self._set_record_status(True)
+
+        # Notificar al MainController
+        if self.main_controller:
+            self.main_controller.update_record_button_state(True)
+            self.main_controller.set_record_button_enabled(True)
     
     def _on_recorder_stopped(self) -> None:
         """Handle recorder stopped signal."""
@@ -440,6 +445,33 @@ class IQManagerWidget(QDockWidget):
         self.pushButton_record_stop.setEnabled(False)
         self.ui_update_timer.stop()
         self._set_record_status(False)
+
+        # Notificar al MainController
+        if self.main_controller:
+            self.main_controller.update_record_button_state(False)'''
+
+    def _on_recorder_started(self, filename: str):
+        """Handle recorder started signal."""
+        self.label_record_filename.setText(os.path.basename(filename))
+        self._set_record_status(True)
+        
+        # ===== NUEVO: Actualizar indicador de modo en barra superior =====
+        if self.main_controller and hasattr(self.main_controller, 'update_mode_indicator'):
+            self.main_controller.update_mode_indicator('rec')
+            self.logger.info("📻 Indicador de modo actualizado: REC")
+        # ================================================================
+    
+    def _on_recorder_stopped(self):
+        """Handle recorder stopped signal."""
+        self.pushButton_record_start.setEnabled(True)
+        self.pushButton_record_stop.setEnabled(False)
+        self.ui_update_timer.stop()
+        self._set_record_status(False)
+        
+        # ===== NUEVO: Restaurar indicador de modo =====
+        if self.main_controller and hasattr(self.main_controller, 'update_mode_indicator'):
+            self.main_controller.update_mode_indicator()  # Auto-detectar
+            self.logger.info("📻 Indicador de modo restaurado")
     
     def _update_recording_ui(self, stats: dict) -> None:
         """Update recording UI with stats."""

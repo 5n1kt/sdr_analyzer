@@ -28,6 +28,8 @@ from widgets.frequency_spinner import FrequencySpinner
 
 from widgets.artemis_widget import ArtemisWidget
 
+from widgets.tscm_widget import TSCMWidget
+
 
 # ============================================================================
 # UI CONTROLLER
@@ -84,6 +86,14 @@ class UIController:
         self.main.artemis_widget.setWindowTitle("📡 BASE DE DATOS ARTEMIS")
         self.main.artemis_widget.setObjectName("dock_artemis")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.artemis_widget)
+
+        # ===== TSCM Widget (Herramienta de Análisis Diferencial) =====
+        self.main.tscm_widget = TSCMWidget(self.main)
+        self.main.tscm_widget.setWindowTitle("🔴 TSCM / DIFERENCIAL")
+        self.main.tscm_widget.setObjectName("dock_tscm")
+        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.tscm_widget)
+        # ================================================================
+       
         
         # Conectar señal de sintonización
         self.main.artemis_widget.signal_selected.connect(
@@ -402,6 +412,13 @@ class UIController:
         if 'min_threshold' in settings and 'max_threshold' in settings:
             if hasattr(self.main, 'waterfall'):
                 self.main.waterfall.set_display_range(
+                    settings['min_threshold'],
+                    settings['max_threshold']
+                )
+
+            # Actualizar rango del medidor de potencia
+            if hasattr(self.main, 'update_power_meter_range'):
+                self.main.update_power_meter_range(
                     settings['min_threshold'],
                     settings['max_threshold']
                 )

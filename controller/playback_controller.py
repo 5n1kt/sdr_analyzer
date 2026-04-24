@@ -184,7 +184,11 @@ class PlaybackController:
             self._file_loader = FileLoaderThread(filename)
             self._file_loader.load_finished.connect(self._on_file_loaded)
             self._file_loader.start()
-            
+
+            # Actualizar indicador de modo
+            if hasattr(self.main, 'update_mode_indicator'):
+                self.main.update_mode_indicator('play')
+                
             self.logger.info("=" * 60)
             
         except Exception as e:
@@ -242,6 +246,10 @@ class PlaybackController:
             # Clear waterfall
             if hasattr(self.main, 'waterfall'):
                 self.main.waterfall.clear()
+
+            # Restaurar indicador de modo
+            if hasattr(self.main, 'update_mode_indicator'):
+                self.main.update_mode_indicator('live')
             
             self.main.statusbar.showMessage("⏹ Playback stopped", 3000)
             self.logger.info("✅ Playback stopped successfully")

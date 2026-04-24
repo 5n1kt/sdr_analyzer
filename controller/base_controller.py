@@ -76,7 +76,7 @@ class MainController(QMainWindow):
         self.logger.info(f"✅ ThemeManager creado en MainController (id: {id(self.theme_manager)})")
                 
         # Cargar UI principal
-        loadUi('mainwindow_.ui', self)
+        loadUi('mainwindow.ui', self)
        
         # ===== INICIALIZAR COMPONENTES =====
         self._init_components()
@@ -89,6 +89,10 @@ class MainController(QMainWindow):
         
         # ===== INICIALIZAR HARDWARE =====
         self.initialize_sdr()  # <-- Cambiado de initialize_bladerf()
+
+        self._setup_power_meter()
+
+        self._setup_record_button()
         
         # ===== TIMER PARA ACTUALIZACIÓN =====
         self.update_timer = QTimer()
@@ -206,6 +210,11 @@ class MainController(QMainWindow):
         # Conectar FFTController con TSCMController
         if hasattr(self, 'fft_ctrl'):
             self.fft_ctrl.set_tscm_controller(self.tscm_ctrl)
+    
+        # Inicializar indicador de modo al final del __init__
+        if hasattr(self, 'label_mode_indicator'):
+            self.update_mode_indicator('live')
+            self.logger.info("📻 Indicador de modo inicializado: LIVE")
 
 
 
@@ -221,7 +230,7 @@ class MainController(QMainWindow):
         else:
             self.logger.error("❌ No se pudo conectar TSCM: fft_ctrl o fft_widget no existen")
 
-    def _connect_tscm_signals(self):
+    '''def _connect_tscm_signals(self):
         """Conecta las señales TSCM entre FFTControlsWidget y FFTController."""
         self.logger.info("=" * 60)
         self.logger.info("🔗 Conectando señales TSCM...")
@@ -240,6 +249,39 @@ class MainController(QMainWindow):
             self.logger.error("❌ fft_ctrl o fft_widget no existen")
             self.logger.info(f"   fft_ctrl existe: {hasattr(self, 'fft_ctrl')}")
             self.logger.info(f"   fft_widget existe: {hasattr(self, 'fft_widget')}")
+        
+        self.logger.info("=" * 60)'''
+
+    def _connect_tscm_signals(self):
+        """
+        Conecta las señales TSCM entre TSCMWidget y TSCMController.
+        NOTA: Ya no usa FFTController para esto.
+        """
+        self.logger.info("=" * 60)
+        self.logger.info("🔗 Conectando señales TSCM...")
+        
+        # Verificar que tenemos TSCM Controller y Widget
+        if hasattr(self, 'tscm_ctrl') and hasattr(self, 'tscm_widget'):
+            self.logger.info(f"   tscm_ctrl: {type(self.tscm_ctrl).__name__}")
+            self.logger.info(f"   tscm_widget: {type(self.tscm_widget).__name__}")
+            
+            # Conectar el widget al controlador
+            if hasattr(self.tscm_ctrl, 'set_widget'):
+                self.tscm_ctrl.set_widget(self.tscm_widget)
+                self.logger.info("✅ Widget TSCM conectado al controlador")
+            else:
+                self.logger.error("❌ tscm_ctrl NO tiene método set_widget")
+            
+            # Conectar FFTController con TSCMController
+            if hasattr(self, 'fft_ctrl') and hasattr(self.fft_ctrl, 'set_tscm_controller'):
+                self.fft_ctrl.set_tscm_controller(self.tscm_ctrl)
+                self.logger.info("✅ FFTController vinculado con TSCMController")
+            else:
+                self.logger.warning("⚠️ FFTController no tiene set_tscm_controller (TSCM usará método alternativo)")
+        else:
+            self.logger.error("❌ tscm_ctrl o tscm_widget no existen")
+            self.logger.info(f"   tscm_ctrl existe: {hasattr(self, 'tscm_ctrl')}")
+            self.logger.info(f"   tscm_widget existe: {hasattr(self, 'tscm_widget')}")
         
         self.logger.info("=" * 60)
 
@@ -573,3 +615,394 @@ class MainController(QMainWindow):
         if hasattr(self, 'config_manager'):
             self.config_manager._save_artemis_settings(self)
             self.logger.info("💾 Ruta de Artemis DB guardada en configuración")
+
+
+
+    
+    def _setup_power_meter(self):
+        """Configura el medidor de potencia en la barra superior."""
+        # Timer para actualizar la potencia periódicamente
+        self.power_update_timer = QTimer()
+        self.power_update_timer.timeout.connect(self._update_power_display)
+        self.power_update_timer.start(100)  # 10 Hz
+        
+        # Rango de potencia (dBm o dBFS)
+        self.power_min_db = -120.0
+        self.power_max_db = 0.0
+        
+        # Estado de saturación
+        self.saturation_detected = False
+        self.saturation_count = 0
+        
+        self.logger.info("✅ Medidor de potencia configurado")
+
+    def _update_power_display(self):
+        """
+        Actualiza el display de potencia en tiempo real.
+        Obtiene la potencia en la frecuencia actual del marcador.
+        """
+        try:
+            if not hasattr(self, 'spectrum_plot'):
+                return
+            
+            # Obtener frecuencia actual del spinner
+            if hasattr(self, 'frequency_spinner'):
+                current_freq_mhz = self.frequency_spinner.getFrequency()
+            elif hasattr(self, 'doubleSpinBox_freq'):
+                current_freq_mhz = self.doubleSpinBox_freq.value()
+            else:
+                return
+            
+            # Obtener potencia en esa frecuencia
+            power_db = self._get_power_at_frequency(current_freq_mhz)
+            
+            if power_db is not None:
+                self._update_power_label(power_db)
+                self._update_power_progress_bar(power_db)
+                self._check_saturation(power_db)
+            
+        except Exception as e:
+            self.logger.debug(f"Error actualizando medidor de potencia: {e}")
+
+    def _get_power_at_frequency(self, freq_mhz: float) -> float:
+        """
+        Obtiene la potencia en la frecuencia especificada.
+        Usa el espectro actual del FFTController.
+        """
+        try:
+            if not hasattr(self, 'fft_ctrl'):
+                return None
+            
+            fft_ctrl = self.fft_ctrl
+            if not hasattr(fft_ctrl, '_prev_spectrum') or fft_ctrl._prev_spectrum is None:
+                return None
+            
+            spectrum = fft_ctrl._prev_spectrum
+            
+            # Obtener parámetros actuales
+            if self.is_playing_back and self.player:
+                sample_rate = self.player.sample_rate
+                center_freq_hz = self.player.freq_mhz * 1e6
+            elif self.bladerf:
+                sample_rate = self.bladerf.sample_rate
+                center_freq_hz = self.bladerf.frequency
+            else:
+                sample_rate = 2e6
+                center_freq_hz = freq_mhz * 1e6
+            
+            center_freq_mhz = center_freq_hz / 1e6
+            sample_rate_mhz = sample_rate / 1e6
+            
+            # Calcular eje de frecuencias
+            fft_size = len(spectrum)
+            freq_axis = np.linspace(
+                center_freq_mhz - sample_rate_mhz / 2,
+                center_freq_mhz + sample_rate_mhz / 2,
+                fft_size
+            )
+            
+            # Encontrar el bin más cercano
+            idx = np.argmin(np.abs(freq_axis - freq_mhz))
+            return float(spectrum[idx])
+            
+        except Exception as e:
+            self.logger.debug(f"Error obteniendo potencia: {e}")
+            return None
+
+    def _update_power_label(self, power_db: float):
+        """Actualiza la etiqueta numérica de potencia."""
+        if hasattr(self, 'label_power_value'):
+            if power_db > -10:
+                color = "#ff4444"  # Rojo - Señal muy fuerte
+            elif power_db > -40:
+                color = "#ffff00"  # Amarillo - Señal moderada
+            elif power_db > -70:
+                color = "#00ff00"  # Verde - Señal normal
+            else:
+                color = "#888888"  # Gris - Señal débil/ruido
+            
+            # Determinar unidad (dBFS vs dBm)
+            unit = "dBFS"  # Por defecto
+            if hasattr(self, 'bladerf') and self.bladerf:
+                # Si hay calibración, usar dBm
+                unit = "dBm"
+            
+            self.label_power_value.setText(f"{power_db:.1f}") #{unit}
+            self.label_power_value.setStyleSheet(
+                f"font-weight: bold; font-size: 12pt; color: {color};"
+            )
+
+    def _update_power_progress_bar(self, power_db: float):
+        """Actualiza la barra de progreso de potencia."""
+        if hasattr(self, 'progressBar_power'):
+            # Mapear de [-120, 0] a [0, 100]
+            normalized = (power_db - self.power_min_db) / (self.power_max_db - self.power_min_db)
+            normalized = max(0.0, min(1.0, normalized))
+            
+            self.progressBar_power.setValue(int(normalized * 100))
+
+    def _check_saturation(self, power_db: float):
+        """
+        Verifica si la señal está saturando el ADC.
+        Umbral de saturación: > -1.0 dBFS
+        """
+        if power_db > -1.0:
+            self.saturation_count += 1
+        else:
+            self.saturation_count = max(0, self.saturation_count - 1)
+        
+        is_saturated = self.saturation_count >= 3
+        
+        if is_saturated and not self.saturation_detected:
+            self.saturation_detected = True
+            if hasattr(self, 'label_saturation'):
+                self.label_saturation.setVisible(True)
+                self.label_saturation.setToolTip(
+                    "⚠️ ADC SATURADO - ¡Reduzca la ganancia inmediatamente!\n"
+                    "La señal está recortando y los datos son inválidos."
+                )
+            self.logger.warning("⚠️ ADC SATURATION DETECTED!")
+            
+        elif not is_saturated and self.saturation_detected:
+            self.saturation_detected = False
+            if hasattr(self, 'label_saturation'):
+                self.label_saturation.setVisible(False)
+
+    def update_power_meter_range(self, min_db: float, max_db: float):
+        """
+        Actualiza el rango del medidor de potencia.
+        Llamado cuando cambian los umbrales en VisualizationWidget.
+        """
+        self.power_min_db = min_db
+        self.power_max_db = max_db
+        self.logger.debug(f"Power meter range updated: [{min_db}, {max_db}] dB")
+
+
+
+    
+    def _setup_record_button(self):
+        """Configura el botón de grabación rápida en la barra superior."""
+        if hasattr(self, 'pushButton_record_main'):
+            self.pushButton_record_main.clicked.connect(self._on_record_main_clicked)
+            self.logger.info("✅ Botón de grabación rápida configurado")
+
+    
+    def _on_record_main_clicked(self):
+        """Maneja el clic en el botón de grabación rápida."""
+        if not hasattr(self, 'iq_manager'):
+            self.logger.warning("⚠️ IQ Manager no disponible")
+            return
+        
+        iq_manager = self.iq_manager
+        
+        if hasattr(iq_manager, 'recorder') and iq_manager.recorder and iq_manager.recorder.is_recording:
+            # Detener grabación
+            iq_manager._on_record_stop_clicked()
+            # ===== NUEVO: Actualizar indicador =====
+            if hasattr(self, 'update_mode_indicator'):
+                self.update_mode_indicator()  # Auto-detectar
+            # =====================================
+        else:
+            # Iniciar grabación
+            iq_manager._on_record_start_clicked()
+            # ===== NUEVO: Actualizar indicador =====
+            if hasattr(self, 'update_mode_indicator'):
+                self.update_mode_indicator('rec')
+            # =====================================
+    
+    '''def _on_record_main_clicked(self):
+        """Maneja el clic en el botón de grabación rápida."""
+        if not hasattr(self, 'iq_manager'):
+            self.logger.warning("⚠️ IQ Manager no disponible")
+            return
+        
+        iq_manager = self.iq_manager
+        
+        # Verificar si el recorder está activo
+        if hasattr(iq_manager, 'recorder') and iq_manager.recorder and iq_manager.recorder.is_recording:
+            # Detener grabación
+            iq_manager._on_record_stop_clicked()
+        else:
+            # Iniciar grabación
+            iq_manager._on_record_start_clicked()'''
+    
+    '''def update_record_button_state(self, is_recording: bool):
+        """
+        Actualiza el estado visual del botón de grabación.
+        Llamado desde IQManagerWidget cuando cambia el estado de grabación.
+        """
+        if not hasattr(self, 'pushButton_record_main'):
+            return
+        
+        if is_recording:
+            self.pushButton_record_main.setText("⏹ DETENER GRAB.")
+            self.pushButton_record_main.setStyleSheet("""
+                QPushButton {
+                    background-color: #ff4444;
+                    color: white;
+                    border: 1px solid #cc0000;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #ff6666;
+                }
+            """)
+        else:
+            self.pushButton_record_main.setText("⏺ GRABAR")
+            self.pushButton_record_main.setStyleSheet("""
+                QPushButton {
+                    background-color: #cc0000;
+                    color: white;
+                    border: 1px solid #990000;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #ff1a1a;
+                }
+                QPushButton:disabled {
+                    background-color: #666666;
+                    border: 1px solid #444444;
+                    color: #aaaaaa;
+                }
+            """)'''
+
+    # controller/base_controller.py
+
+    def update_record_button_state(self, is_recording: bool):
+        """Actualiza el estado visual del botón de grabación."""
+        if not hasattr(self, 'pushButton_record_main'):
+            return
+        
+        if is_recording:
+            self.pushButton_record_main.setText("⏹")
+            self.pushButton_record_main.setStyleSheet("""
+                QPushButton {
+                    background-color: #ff4444;
+                    color: white;
+                    border: 1px solid #cc0000;
+                    border-radius: 2px;
+                    padding: 4px;
+                    font-weight: bold;
+                }
+            """)
+            # ===== NUEVO: Actualizar indicador de modo =====
+            if hasattr(self, 'update_mode_indicator'):
+                self.update_mode_indicator('rec')
+            # ==============================================
+        else:
+            self.pushButton_record_main.setText("⏺")
+            self.pushButton_record_main.setStyleSheet("""
+                QPushButton {
+                    background-color: #3a1a1a;
+                    color: #ff8888;
+                    border: 1px solid #6a2a2a;
+                    border-radius: 2px;
+                    padding: 4px;
+                    font-weight: bold;
+                }
+                QPushButton:disabled {
+                    background-color: #2a2a2a;
+                    border: 1px solid #3a3a3a;
+                    color: #666666;
+                }
+            """)
+            # ===== NUEVO: Restaurar indicador de modo =====
+            if hasattr(self, 'update_mode_indicator'):
+                self.update_mode_indicator()  # Auto-detectar
+            # ==============================================
+    
+    def set_record_button_enabled(self, enabled: bool):
+        """Habilita/deshabilita el botón de grabación."""
+        if hasattr(self, 'pushButton_record_main'):
+            self.pushButton_record_main.setEnabled(enabled)
+
+
+    # controller/base_controller.py
+
+    def update_mode_indicator(self, mode: str = None):
+        """
+        Actualiza el indicador de modo en la barra superior.
+        Prioridad: REC > TSCM > SCAN > PLAY > LIVE
+        """
+        if not hasattr(self, 'label_mode_indicator'):
+            return
+        
+        if mode is None:
+            # Auto-detectar con prioridad
+            if hasattr(self, 'iq_manager') and self.iq_manager.recorder and self.iq_manager.recorder.is_recording:
+                mode = 'rec'
+            elif hasattr(self, 'tscm_ctrl') and self.tscm_ctrl.is_diff_mode_active():
+                mode = 'tscm'
+            elif self.is_playing_back:
+                mode = 'play'
+            elif hasattr(self, 'detector_ctrl') and hasattr(self.detector_ctrl, 'widget'):
+                if self.detector_ctrl.widget.is_scanning:
+                    mode = 'scanner'
+                else:
+                    mode = 'live'
+            else:
+                mode = 'live'
+        
+        styles = {
+            'live': {
+                'text': 'LIVE',
+                'style': (
+                    "font-weight: bold; font-size: 10pt; "
+                    "color: #88cc88; background-color: #1a2a1a; "
+                    "border: 1px solid #2a6a2a; border-radius: 2px; "
+                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
+                ),
+                'tooltip': 'Sistema en vivo - Captura RF activa'
+            },
+            'rec': {
+                'text': 'REC',
+                'style': (
+                    "font-weight: bold; font-size: 10pt; "
+                    "color: #ff4444; background-color: #2a1010; "
+                    "border: 1px solid #aa2a2a; border-radius: 2px; "
+                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
+                ),
+                'tooltip': 'GRABANDO - Archivo IQ en escritura'
+            },
+            'play': {
+                'text': 'PLAY',
+                'style': (
+                    "font-weight: bold; font-size: 10pt; "
+                    "color: #88aadd; background-color: #1a1a2a; "
+                    "border: 1px solid #2a4a8a; border-radius: 2px; "
+                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
+                ),
+                'tooltip': 'Reproduciendo archivo IQ - Análisis forense'
+            },
+            'scanner': {
+                'text': 'SCAN',
+                'style': (
+                    "font-weight: bold; font-size: 10pt; "
+                    "color: #ddcc44; background-color: #2a2a1a; "
+                    "border: 1px solid #8a8a2a; border-radius: 2px; "
+                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
+                ),
+                'tooltip': 'Escaneo de señales activo - Búsqueda en progreso'
+            },
+            'tscm': {
+                'text': 'TSCM',
+                'style': (
+                    "font-weight: bold; font-size: 10pt; "
+                    "color: #ff8844; background-color: #2a1a0a; "
+                    "border: 1px solid #8a4a2a; border-radius: 2px; "
+                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
+                ),
+                'tooltip': 'Modo Contravigilancia - Análisis diferencial activo'
+            }
+        }
+        
+        config = styles.get(mode, styles['live'])
+        self.label_mode_indicator.setText(config['text'])
+        self.label_mode_indicator.setStyleSheet(config['style'])
+        self.label_mode_indicator.setToolTip(config['tooltip'])
+        
+        self.logger.info(f"📻 Indicador de modo: {config['text']}")

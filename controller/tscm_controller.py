@@ -147,6 +147,13 @@ class TSCMController(QObject):
             
             self.logger.info("   Modo diferencias DESACTIVADO")
             self.main.statusbar.showMessage("⚪ Modo Diferencias Desactivado", 2000)
+
+        # Actualizar indicador de modo
+        if hasattr(self.main, 'update_mode_indicator'):
+            if enabled:
+                self.main.update_mode_indicator('tscm')
+            else:
+                self.main.update_mode_indicator('live')
         
         # Notificar al FFTController que el modo TSCM cambió
         self._notify_fft_controller()

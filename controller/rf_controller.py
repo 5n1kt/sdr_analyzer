@@ -200,7 +200,11 @@ class RFController:
                 self.main.audio_ctrl.on_capture_started()
             else:
                 self.logger.warning("⚠️ Audio controller not available")
-            
+
+            # Habilitar botón de grabación en barra superior
+            if hasattr(self.main, 'set_record_button_enabled'):
+                self.main.set_record_button_enabled(True)
+                    
             # Update state
             self.main.is_running = True
             self._update_ui_running_state(True, params)
@@ -361,7 +365,20 @@ class RFController:
         
         if running:
             btn.setText("Detener")
-            btn.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold;")
+            #btn.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold;")
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #0060cc;
+                    color: white;
+                    border: 1px solid #004099;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #1a80ff;
+                }
+            """)
             
             # Notify FFT and RF widgets about capture start
             if hasattr(self.main, 'fft_widget'):
@@ -378,7 +395,20 @@ class RFController:
             )
         else:
             btn.setText("Iniciar")
-            btn.setStyleSheet("")
+            #btn.setStyleSheet("")
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #0080ff;
+                    color: white;
+                    border: 1px solid #0060cc;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #1a90ff;
+                }
+            """)
             
             if hasattr(self.main, 'fft_widget'):
                 self.main.fft_widget.on_capture_stopped()
@@ -454,7 +484,11 @@ class RFController:
             self.main.is_running = False
             self._update_ui_running_state(False)
             self.logger.info("✅ Capture stopped")
-            
+
+            # Deshabilitar botón de grabación
+            if hasattr(self.main, 'set_record_button_enabled'):
+                self.main.set_record_button_enabled(False)
+                    
         except Exception as exc:
             self.logger.error(f"❌ Error in stop_rx: {exc}")
             # Force cleanup

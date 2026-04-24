@@ -126,12 +126,22 @@ class DetectorController:
             f"📡 Scanning '{band_name}' — "
             f"{freq_count} frequencies × {interval}ms ≈ {est_time_s:.0f}s/pass"
         )
+
+        # Actualizar indicador de modo - CAMBIADO 'detector' POR 'scanner'
+        if hasattr(self.main, 'update_mode_indicator'):
+            self.main.update_mode_indicator('scanner')
+            self.logger.info("📻 Indicador de modo: SCAN")
     
     def on_scan_stopped(self) -> None:
         """Stop scanning."""
         self.logger.info("⏹ Stopping detector")
         self.stop_adapter()
         self.widget.update_scan_state(False)
+
+        # Restaurar indicador de modo - Auto-detectar el modo correcto
+        if hasattr(self.main, 'update_mode_indicator'):
+            self.main.update_mode_indicator()
+            self.logger.info("📻 Indicador de modo restaurado")
     
     def on_scan_paused(self) -> None:
         """Pause scanning."""

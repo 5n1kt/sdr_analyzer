@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1280</width>
+    <height>900</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>SIMANEEM // SIGINT</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_central">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    
+    <!-- BARRA DE HERRAMIENTAS SUPERIOR -->
+    <item>
+     <widget class="QWidget" name="widget_top_toolbar" native="true">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>52</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>52</height>
+       </size>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_toolbar">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>4</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>4</number>
+       </property>
+       
+       <!-- BOTÓN INICIAR/DETENER -->
+       <item>
+        <widget class="QPushButton" name="pushButton_start_stop_main">
+         <property name="minimumSize">
+          <size>
+           <width>100</width>
+           <height>38</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>Segoe UI</family>
+           <pointsize>9</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string>Iniciar/Detener captura (Ctrl+R)</string>
+         </property>
+         <property name="text">
+          <string>INICIAR</string>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- BOTÓN GRABAR -->
+       <item>
+        <widget class="QPushButton" name="pushButton_record_main">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>38</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>50</width>
+           <height>38</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string>Grabar IQ (Ctrl+Shift+R)</string>
+         </property>
+         <property name="text">
+          <string>⏺</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- SEPARADOR 1 -->
+       <item>
+        <widget class="QFrame" name="frame_sep_1">
+         <property name="minimumSize">
+          <size>
+           <width>1</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>1</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::VLine</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Plain</enum>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- INDICADOR DE MODO -->
+       <item>
+        <widget class="QLabel" name="label_mode_indicator">
+         <property name="minimumSize">
+          <size>
+           <width>90</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>LIVE</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- SEPARADOR 2 -->
+       <item>
+        <widget class="QFrame" name="frame_sep_2">
+         <property name="minimumSize">
+          <size>
+           <width>1</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>1</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::VLine</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Plain</enum>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- ESPACIADOR -->
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       
+       <!-- ETIQUETA Y FRECUENCY SPINNER -->
+       <item>
+        <widget class="QLabel" name="label_freq_title">
+         <property name="text">
+          <string>FREC:</string>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">font-weight: bold; color: #00aaff; font-size: 10pt;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="widget_frequency_spinner" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>420</width>
+           <height>40</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>460</width>
+           <height>42</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- SEPARADOR 3 -->
+       <item>
+        <widget class="QFrame" name="frame_sep_3">
+         <property name="minimumSize">
+          <size>
+           <width>1</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>1</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::VLine</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Plain</enum>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- MEDIDOR DE POTENCIA (DISEÑO AZUL) -->
+       <item>
+        <widget class="QWidget" name="widget_power_meter" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>240</width>
+           <height>40</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>260</width>
+           <height>40</height>
+          </size>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_power_meter">
+          <property name="spacing">
+           <number>6</number>
+          </property>
+          <property name="leftMargin">
+           <number>8</number>
+          </property>
+          <property name="topMargin">
+           <number>2</number>
+          </property>
+          <property name="rightMargin">
+           <number>8</number>
+          </property>
+          <property name="bottomMargin">
+           <number>2</number>
+          </property>
+
+
+          <item>
+            <widget class="QLabel" name="label_power_title">
+            <property name="text">
+            <string>POT:</string>
+            </property>
+            <property name="styleSheet">
+            <string notr="true">font-weight: bold; color: #00aaff; font-size: 10pt;</string>
+            </property>
+            </widget>
+          </item>
+
+          
+          <item>
+           <widget class="QLabel" name="label_power_value">
+            <property name="minimumSize">
+             <size>
+              <width>70</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>- - -</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">font-weight: bold; font-size: 12pt; color: #00ccff; font-family: 'Courier New', monospace;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_power_unit">
+            <property name="text">
+             <string>dBm</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">font-size: 9pt; color: #00aaff; font-weight: bold;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QProgressBar" name="progressBar_power">
+            <property name="minimumSize">
+             <size>
+              <width>70</width>
+              <height>12</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>80</width>
+              <height>14</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">
+              QProgressBar {
+                  border: 1px solid #2a3a4a;
+                  background-color: #0d1218;
+              }
+              QProgressBar::chunk {
+                  background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                      stop:0 #004080, stop:0.5 #0080ff, stop:1 #00ccff);
+                  width: 2px;
+              }
+             </string>
+            </property>
+            <property name="value">
+             <number>0</number>
+            </property>
+            <property name="textVisible">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       
+       <!-- INDICADOR DE SATURACIÓN -->
+       <item>
+        <widget class="QLabel" name="label_saturation">
+         <property name="minimumSize">
+          <size>
+           <width>40</width>
+           <height>36</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>40</width>
+           <height>36</height>
+          </size>
+         </property>
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+         <property name="toolTip">
+          <string>⚠️ ADC SATURADO - Reducir Ganancia</string>
+         </property>
+         <property name="text">
+          <string>SAT</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       
+       <!-- ESPACIADOR FINAL -->
+       <item>
+        <spacer name="horizontalSpacer_toolbar_end">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    
+    <!-- ÁREA CENTRAL: ESPECTRO Y WATERFALL -->
+    <item>
+     <widget class="QSplitter" name="splitter_main_vertical">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="handleWidth">
+       <number>3</number>
+      </property>
+      <widget class="QGroupBox" name="groupBox_spectrum">
+       <property name="title">
+        <string>ESPECTRO</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_spectrum">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>1</number>
+        </property>
+        <property name="topMargin">
+         <number>8</number>
+        </property>
+        <property name="rightMargin">
+         <number>1</number>
+        </property>
+        <property name="bottomMargin">
+         <number>1</number>
+        </property>
+       </layout>
+      </widget>
+      <widget class="QGroupBox" name="groupBox_waterfall">
+       <property name="title">
+        <string>WATERFALL</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_waterfall">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>1</number>
+        </property>
+        <property name="topMargin">
+         <number>8</number>
+        </property>
+        <property name="rightMargin">
+         <number>1</number>
+        </property>
+        <property name="bottomMargin">
+         <number>1</number>
+        </property>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  
+  <!-- BARRA DE MENÚ -->
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1280</width>
+     <height>25</height>
+    </rect>
+   </property>
+  </widget>
+  
+  <!-- BARRA DE ESTADO -->
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

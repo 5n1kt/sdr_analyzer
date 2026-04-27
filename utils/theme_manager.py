@@ -104,9 +104,12 @@ class ThemeManager(QObject):
                 'button_pressed_bg': QColor(29, 29, 29),
                 'accent': QColor(0, 128, 255),
                 'accent_hover': QColor(37, 144, 255),
-                'dock_title_bg': QColor(42, 42, 42),
-                'dock_title_fg': QColor(220, 220, 220),
-                'dock_border': QColor(64, 64, 64),
+                #'dock_title_bg': QColor(42, 42, 42),
+                #'dock_title_fg': QColor(220, 220, 220),
+                #'dock_border': QColor(64, 64, 64),
+                'dock_title_bg': QColor(0, 60, 120),     # Azul marino oscuro
+                'dock_title_fg': QColor(220, 230, 255),  # Blanco azulado
+                'dock_border': QColor(0, 80, 160),       # Azul medio
                 'detector_text': QColor(220, 220, 220),
                 'detector_bg': QColor(24, 24, 24),
                 'tooltip_bg': QColor(20, 20, 20, 200),
@@ -148,9 +151,12 @@ class ThemeManager(QObject):
                 'button_pressed_bg': QColor(209, 209, 209),
                 'accent': QColor(0, 100, 200),
                 'accent_hover': QColor(30, 130, 230),
-                'dock_title_bg': QColor(220, 220, 220),
-                'dock_title_fg': QColor(0, 0, 0),
-                'dock_border': QColor(160, 160, 160),
+                #'dock_title_bg': QColor(220, 220, 220),
+                #'dock_title_fg': QColor(0, 0, 0),
+                #'dock_border': QColor(160, 160, 160),
+                'dock_title_bg': QColor(0, 100, 200),    # Azul más brillante
+                'dock_title_fg': QColor(255, 255, 255),  # Blanco puro
+                'dock_border': QColor(0, 120, 220),      # Azul claro
                 'detector_text': QColor(0, 0, 0),
                 'detector_bg': QColor(255, 255, 255),
                 'tooltip_bg': QColor(255, 255, 255, 220),
@@ -236,9 +242,12 @@ class ThemeManager(QObject):
                 'button_pressed_bg': QColor(40, 47, 54),
                 'accent': QColor(0, 150, 200),
                 'accent_hover': QColor(30, 170, 220),
-                'dock_title_bg': QColor(50, 58, 65),
-                'dock_title_fg': QColor(220, 230, 240),
-                'dock_border': QColor(70, 80, 92),
+                #'dock_title_bg': QColor(50, 58, 65),
+                #'dock_title_fg': QColor(220, 230, 240),
+                #'dock_border': QColor(70, 80, 92),
+                'dock_title_bg': QColor(0, 40, 80),      # Azul muy oscuro (estilo naval)
+                'dock_title_fg': QColor(200, 220, 255),  # Texto claro
+                'dock_border': QColor(0, 60, 120),       # Azul medio oscuro
                 'detector_text': QColor(220, 230, 240),
                 'detector_bg': QColor(38, 45, 50),
                 'tooltip_bg': QColor(38, 45, 50, 220),

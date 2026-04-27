@@ -56,43 +56,47 @@ class UIController:
     
     def setup_dock_widgets(self) -> None:
         """Create and arrange all dockable widgets."""
-        # 1. RF Controls (hardware)
+    
+        # 1. RF Controls
         self.main.rf_widget = RFControlsWidget(self.main.bladerf)
+        self.main.rf_widget.setObjectName("dock_rf_controls")
         self.main.addDockWidget(Qt.LeftDockWidgetArea, self.main.rf_widget)
         
-        # 2. FFT Controls (analysis)
+        # 2. FFT Controls
         self.main.fft_widget = FFTControlsWidget()
+        self.main.fft_widget.setObjectName("dock_fft_controls")
         self.main.addDockWidget(Qt.LeftDockWidgetArea, self.main.fft_widget)
         
-        # 3. Visualization (presentation)
+        # 3. Visualization
         self.main.viz_widget = VisualizationWidget()
+        self.main.viz_widget.setObjectName("dock_visualization")
         self.main.addDockWidget(Qt.LeftDockWidgetArea, self.main.viz_widget)
         
-        # 4. Audio (demodulation)
+        # 4. Audio
         self.main.audio_widget = self.main.audio_ctrl.create_widget()
+        self.main.audio_widget.setObjectName("dock_audio")
         self.main.addDockWidget(Qt.LeftDockWidgetArea, self.main.audio_widget)
         
-        # 5. Detector (automatic detection)
+        # 5. Detector
         self.main.detector_widget = self.main.detector_ctrl.create_widget()
+        self.main.detector_widget.setObjectName("dock_signal_detector")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.detector_widget)
         
-        # 6. IQ Manager (storage)
+        # 6. IQ Manager
         self.main.iq_manager = IQManagerWidget(self.main)
         self.main.iq_manager.set_controller(self.main)
+        self.main.iq_manager.setObjectName("dock_iq_manager")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.iq_manager)
-
-        # ===== ARTEMIS DATABASE WIDGET =====
+        
+        # 7. Artemis
         self.main.artemis_widget = ArtemisWidget(self.main)
-        self.main.artemis_widget.setWindowTitle("📡 BASE DE DATOS ARTEMIS")
         self.main.artemis_widget.setObjectName("dock_artemis")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.artemis_widget)
-
-        # ===== TSCM Widget (Herramienta de Análisis Diferencial) =====
+        
+        # 8. TSCM
         self.main.tscm_widget = TSCMWidget(self.main)
-        self.main.tscm_widget.setWindowTitle("🔴 TSCM / DIFERENCIAL")
         self.main.tscm_widget.setObjectName("dock_tscm")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.tscm_widget)
-        # ================================================================
        
         
         # Conectar señal de sintonización
@@ -286,6 +290,13 @@ class UIController:
         if hasattr(self.main, 'audio_widget'):
             action = self.main.audio_widget.toggleViewAction()
             action.setText(" Demodulador")
+            view_menu.addAction(action)
+
+        view_menu.addSeparator()
+
+        if hasattr(self.main, 'tscm_widget'):
+            action = self.main.tscm_widget.toggleViewAction()
+            action.setText("Análisis Diferencial")
             view_menu.addAction(action)
         
         if hasattr(self.main, 'detector_widget'):

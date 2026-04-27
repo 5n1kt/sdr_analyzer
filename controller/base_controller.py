@@ -76,7 +76,8 @@ class MainController(QMainWindow):
         self.logger.info(f"✅ ThemeManager creado en MainController (id: {id(self.theme_manager)})")
                 
         # Cargar UI principal
-        loadUi('mainwindow.ui', self)
+        loadUi('ui/mainwindow.ui', self)
+
        
         # ===== INICIALIZAR COMPONENTES =====
         self._init_components()

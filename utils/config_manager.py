@@ -177,12 +177,16 @@ class ConfigManager:
         self.settings.setValue("geometry", controller.saveGeometry())
         self.settings.setValue("windowState", controller.saveState())
         
-        # Dock visibility states
+        # Dock visibility states - TODOS los docks
         dock_states = {}
         for dock in controller.findChildren(QDockWidget):
-            if dock.objectName():
-                dock_states[dock.objectName()] = not dock.isHidden()
+            dock_name = dock.objectName()
+            if dock_name:  # Solo guardar docks con nombre
+                dock_states[dock_name] = not dock.isHidden()
+                self.logger.debug(f"   Guardando dock '{dock_name}': visible={not dock.isHidden()}")
+
         self.settings.setValue("dock_states", json.dumps(dock_states))
+        self.logger.info(f"   Guardados {len(dock_states)} docks: {list(dock_states.keys())}")
         
         self.settings.endGroup()
         self.logger.debug("   Window settings saved")
@@ -397,7 +401,7 @@ class ConfigManager:
             f"range={min_threshold}/{max_threshold} dB, hold={hold_mode}/{hold_seconds}s"
         )
     
-    def _load_window_settings(self, controller) -> None:
+    '''def _load_window_settings(self, controller) -> None:
         """Loads window geometry and dock states."""
         self.settings.beginGroup("window")
         
@@ -423,6 +427,46 @@ class ConfigManager:
         
         self.settings.endGroup()
         self.logger.debug("   Window settings loaded")
+
+    # utils/config_manager.py'''
+
+    def _load_window_settings(self, controller) -> None:
+        """Loads window geometry and dock states."""
+        self.settings.beginGroup("window")
+        
+        # 1. PRIMERO restaurar geometría de la ventana
+        geometry = self.settings.value("geometry")
+        if geometry:
+            controller.restoreGeometry(geometry)
+            self.logger.debug("   Window geometry restored")
+        
+        # 2. LUEGO restaurar estado de los docks (esto incluye visibilidad y posiciones)
+        window_state = self.settings.value("windowState")
+        if window_state:
+            controller.restoreState(window_state)
+            self.logger.debug("   Window state restored")
+        
+        # 3. FORZAR visibilidad explícita de TODOS los docks según dock_states
+        dock_states_json = self.settings.value("dock_states", "{}", type=str)
+        try:
+            dock_states = json.loads(dock_states_json)
+            self.logger.debug(f"   Dock states from config: {dock_states}")
+            
+            for dock in controller.findChildren(QDockWidget):
+                dock_name = dock.objectName()
+                if dock_name and dock_name in dock_states:
+                    should_be_visible = dock_states[dock_name]
+                    dock.setVisible(should_be_visible)
+                    self.logger.debug(f"   Dock '{dock_name}' visibility set to: {should_be_visible}")
+                elif dock_name and dock_name not in dock_states:
+                    # Si el dock no está en el JSON, mostrarlo por defecto
+                    dock.setVisible(True)
+                    self.logger.debug(f"   Dock '{dock_name}' not in config, setting visible by default")
+        except Exception as e:
+            self.logger.warning(f"   Error restoring dock states: {e}")
+        
+        self.settings.endGroup()
+        self.logger.debug("   Window settings loaded (docks forced to saved visibility)")
     
     def _load_theme_settings(self, controller) -> None:
         """Loads theme settings."""

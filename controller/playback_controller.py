@@ -249,7 +249,8 @@ class PlaybackController:
 
             # Restaurar indicador de modo
             if hasattr(self.main, 'update_mode_indicator'):
-                self.main.update_mode_indicator('live')
+                self.main.update_mode_indicator()
+                self.logger.info("📻 Indicador de modo restaurado")
             
             self.main.statusbar.showMessage("⏹ Playback stopped", 3000)
             self.logger.info("✅ Playback stopped successfully")

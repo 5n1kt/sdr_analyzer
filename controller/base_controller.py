@@ -214,8 +214,8 @@ class MainController(QMainWindow):
     
         # Inicializar indicador de modo al final del __init__
         if hasattr(self, 'label_mode_indicator'):
-            self.update_mode_indicator('live')
-            self.logger.info("📻 Indicador de modo inicializado: LIVE")
+            self.update_mode_indicator('idle')
+            self.logger.info("📻 Indicador de modo inicializado: ---")
 
 
 
@@ -231,27 +231,7 @@ class MainController(QMainWindow):
         else:
             self.logger.error("❌ No se pudo conectar TSCM: fft_ctrl o fft_widget no existen")
 
-    '''def _connect_tscm_signals(self):
-        """Conecta las señales TSCM entre FFTControlsWidget y FFTController."""
-        self.logger.info("=" * 60)
-        self.logger.info("🔗 Conectando señales TSCM...")
-        
-        if hasattr(self, 'fft_ctrl') and hasattr(self, 'fft_widget'):
-            self.logger.info(f"   fft_ctrl: {type(self.fft_ctrl).__name__}")
-            self.logger.info(f"   fft_widget: {type(self.fft_widget).__name__}")
-            
-            # Verificar que el controlador tiene el método
-            if hasattr(self.fft_ctrl, 'connect_fft_widget_signals'):
-                self.fft_ctrl.connect_fft_widget_signals()
-                self.logger.info("✅ Conexiones TSCM establecidas")
-            else:
-                self.logger.error("❌ fft_ctrl NO tiene método connect_fft_widget_signals")
-        else:
-            self.logger.error("❌ fft_ctrl o fft_widget no existen")
-            self.logger.info(f"   fft_ctrl existe: {hasattr(self, 'fft_ctrl')}")
-            self.logger.info(f"   fft_widget existe: {hasattr(self, 'fft_widget')}")
-        
-        self.logger.info("=" * 60)'''
+ 
 
     def _connect_tscm_signals(self):
         """
@@ -811,74 +791,14 @@ class MainController(QMainWindow):
                 self.update_mode_indicator('rec')
             # =====================================
     
-    '''def _on_record_main_clicked(self):
-        """Maneja el clic en el botón de grabación rápida."""
-        if not hasattr(self, 'iq_manager'):
-            self.logger.warning("⚠️ IQ Manager no disponible")
-            return
-        
-        iq_manager = self.iq_manager
-        
-        # Verificar si el recorder está activo
-        if hasattr(iq_manager, 'recorder') and iq_manager.recorder and iq_manager.recorder.is_recording:
-            # Detener grabación
-            iq_manager._on_record_stop_clicked()
-        else:
-            # Iniciar grabación
-            iq_manager._on_record_start_clicked()'''
     
-    '''def update_record_button_state(self, is_recording: bool):
-        """
-        Actualiza el estado visual del botón de grabación.
-        Llamado desde IQManagerWidget cuando cambia el estado de grabación.
-        """
-        if not hasattr(self, 'pushButton_record_main'):
-            return
-        
-        if is_recording:
-            self.pushButton_record_main.setText("⏹ DETENER GRAB.")
-            self.pushButton_record_main.setStyleSheet("""
-                QPushButton {
-                    background-color: #ff4444;
-                    color: white;
-                    border: 1px solid #cc0000;
-                    border-radius: 4px;
-                    padding: 6px 12px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #ff6666;
-                }
-            """)
-        else:
-            self.pushButton_record_main.setText("⏺ GRABAR")
-            self.pushButton_record_main.setStyleSheet("""
-                QPushButton {
-                    background-color: #cc0000;
-                    color: white;
-                    border: 1px solid #990000;
-                    border-radius: 4px;
-                    padding: 6px 12px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #ff1a1a;
-                }
-                QPushButton:disabled {
-                    background-color: #666666;
-                    border: 1px solid #444444;
-                    color: #aaaaaa;
-                }
-            """)'''
-
-    # controller/base_controller.py
-
     def update_record_button_state(self, is_recording: bool):
         """Actualiza el estado visual del botón de grabación."""
         if not hasattr(self, 'pushButton_record_main'):
             return
         
         if is_recording:
+            # ROJO - Grabando
             self.pushButton_record_main.setText("⏹")
             self.pushButton_record_main.setStyleSheet("""
                 QPushButton {
@@ -889,45 +809,93 @@ class MainController(QMainWindow):
                     padding: 4px;
                     font-weight: bold;
                 }
+                QPushButton:hover {
+                    background-color: #ff6666;
+                }
             """)
-            # ===== NUEVO: Actualizar indicador de modo =====
+            # Actualizar indicador de modo
             if hasattr(self, 'update_mode_indicator'):
                 self.update_mode_indicator('rec')
-            # ==============================================
         else:
-            self.pushButton_record_main.setText("⏺")
-            self.pushButton_record_main.setStyleSheet("""
-                QPushButton {
-                    background-color: #3a1a1a;
-                    color: #ff8888;
-                    border: 1px solid #6a2a2a;
-                    border-radius: 2px;
-                    padding: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:disabled {
-                    background-color: #2a2a2a;
-                    border: 1px solid #3a3a3a;
-                    color: #666666;
-                }
-            """)
-            # ===== NUEVO: Restaurar indicador de modo =====
+            # El botón puede estar habilitado (captura activa) o deshabilitado
+            if self.is_running:
+                # GRIS OSCUO - Habilitado, esperando grabar
+                self.pushButton_record_main.setText("⏺")
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #3a1a1a;
+                        color: #ff8888;
+                        border: 1px solid #6a2a2a;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #5a2a2a;
+                        color: #ffaaaa;
+                    }
+                """)
+            else:
+                # GRIS - Deshabilitado, captura detenida
+                self.pushButton_record_main.setText("⏺")
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2a2a2a;
+                        border: 1px solid #3a3a3a;
+                        color: #666666;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                    }
+                """)
+            
+            # Restaurar indicador de modo
             if hasattr(self, 'update_mode_indicator'):
-                self.update_mode_indicator()  # Auto-detectar
-            # ==============================================
+                self.update_mode_indicator()
     
     def set_record_button_enabled(self, enabled: bool):
         """Habilita/deshabilita el botón de grabación."""
         if hasattr(self, 'pushButton_record_main'):
             self.pushButton_record_main.setEnabled(enabled)
+            # Actualizar estilo según el estado actual
+            if enabled:
+                # Rojo oscuro - listo para grabar
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #3a1a1a;
+                        color: #ff8888;
+                        border: 1px solid #6a2a2a;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                        font-size: 12pt;
+                    }
+                    QPushButton:hover {
+                        background-color: #5a2a2a;
+                        color: #ffaaaa;
+                        border: 1px solid #aa3a3a;
+                    }
+                """)
+            else:
+                # Gris - deshabilitado
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2a2a2a;
+                        border: 1px solid #3a3a3a;
+                        color: #666666;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                        font-size: 12pt;
+                    }
+                """)
 
 
-    # controller/base_controller.py
 
     def update_mode_indicator(self, mode: str = None):
         """
         Actualiza el indicador de modo en la barra superior.
-        Prioridad: REC > TSCM > SCAN > PLAY > LIVE
+        Prioridad: REC > TSCM > SCAN > PLAY > LIVE > IDLE
         """
         if not hasattr(self, 'label_mode_indicator'):
             return
@@ -943,12 +911,26 @@ class MainController(QMainWindow):
             elif hasattr(self, 'detector_ctrl') and hasattr(self.detector_ctrl, 'widget'):
                 if self.detector_ctrl.widget.is_scanning:
                     mode = 'scanner'
-                else:
+                elif self.is_running:
                     mode = 'live'
-            else:
+                else:
+                    mode = 'idle'
+            elif self.is_running:
                 mode = 'live'
+            else:
+                mode = 'idle'
         
         styles = {
+            'idle': {
+                'text': '---',
+                'style': (
+                    "font-weight: bold; font-size: 10pt; "
+                    "color: #666666; background-color: #1a1a1a; "
+                    "border: 1px solid #3a3a3a; border-radius: 2px; "
+                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
+                ),
+                'tooltip': 'Sistema en espera - Captura detenida'
+            },
             'live': {
                 'text': 'LIVE',
                 'style': (
@@ -1001,7 +983,7 @@ class MainController(QMainWindow):
             }
         }
         
-        config = styles.get(mode, styles['live'])
+        config = styles.get(mode, styles['idle'])
         self.label_mode_indicator.setText(config['text'])
         self.label_mode_indicator.setStyleSheet(config['style'])
         self.label_mode_indicator.setToolTip(config['tooltip'])

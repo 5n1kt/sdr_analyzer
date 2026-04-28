@@ -93,6 +93,8 @@ class ConfigManager:
         self._save_rf_settings(controller)
         self._save_fft_settings(controller)
         self._save_viz_settings(controller)
+        self._save_recording_settings(controller)
+        self._save_detector_settings(controller)      
         self._save_window_settings(controller)
         self._save_theme_settings(controller)
         self._save_artemis_settings(controller)  
@@ -176,6 +178,12 @@ class ConfigManager:
         # Window geometry
         self.settings.setValue("geometry", controller.saveGeometry())
         self.settings.setValue("windowState", controller.saveState())
+
+        # Guardar posición del splitter principal
+        if hasattr(controller, 'splitter_main_vertical'):
+            sizes = controller.splitter_main_vertical.sizes()
+            self.settings.setValue("splitter_spectrum_waterfall", json.dumps(sizes))
+            self.logger.debug(f"   Splitter sizes saved: {sizes}")
         
         # Dock visibility states - TODOS los docks
         dock_states = {}
@@ -214,6 +222,92 @@ class ConfigManager:
             self.logger.debug(f"   Artemis DB path saved: {controller.artemis_widget.base_path}")
         
         self.settings.endGroup()
+
+
+    def _save_recording_settings(self, controller) -> None:
+        """Saves recording settings from IQ Manager widget."""
+        if not hasattr(controller, 'iq_manager'):
+            return
+        
+        self.settings.beginGroup("recording")
+        
+        iq_manager = controller.iq_manager
+        
+        # Modo de grabación (0=Continuo, 1=Tiempo, 2=Tamaño)
+        if hasattr(iq_manager, 'radio_record_continuous'):
+            if iq_manager.radio_record_continuous.isChecked():
+                mode = "continuous"
+            elif iq_manager.radio_record_time.isChecked():
+                mode = "time"
+            elif iq_manager.radio_record_size.isChecked():
+                mode = "size"
+            else:
+                mode = "continuous"
+            self.settings.setValue("mode", mode)
+        
+        # Límite de tiempo (segundos)
+        if hasattr(iq_manager, 'spinBox_record_duration'):
+            self.settings.setValue("time_limit", iq_manager.spinBox_record_duration.value())
+        
+        # Límite de tamaño (MB)
+        if hasattr(iq_manager, 'spinBox_record_size'):
+            self.settings.setValue("size_limit_mb", iq_manager.spinBox_record_size.value())
+        
+        # Velocidad de reproducción
+        if hasattr(iq_manager, 'spinBox_play_speed'):
+            self.settings.setValue("play_speed", iq_manager.spinBox_play_speed.value())
+        
+        # Modo bucle (reproducción)
+        if hasattr(iq_manager, 'pushButton_play_loop'):
+            self.settings.setValue("play_loop", iq_manager.pushButton_play_loop.isChecked())
+        
+        self.settings.endGroup()
+        self.logger.debug(f"   Recording settings saved: mode={mode}")
+
+
+    def _save_detector_settings(self, controller) -> None:
+        """Saves signal detector settings."""
+        if not hasattr(controller, 'detector_widget'):
+            return
+        
+        self.settings.beginGroup("detector")
+        
+        widget = controller.detector_widget
+        
+        # Modo de detección (NARROW/MEDIUM/WIDE/CUSTOM)
+        if hasattr(widget, 'comboBox_mode'):
+            self.settings.setValue("mode_index", widget.comboBox_mode.currentIndex())
+        
+        # Ancho de banda mínimo (kHz)
+        if hasattr(widget, 'spinBox_min_bw'):
+            self.settings.setValue("min_bw_khz", widget.spinBox_min_bw.value())
+        
+        # Ancho de banda máximo (kHz)
+        if hasattr(widget, 'spinBox_max_bw'):
+            self.settings.setValue("max_bw_khz", widget.spinBox_max_bw.value())
+        
+        # Umbral de detección (dB)
+        if hasattr(widget, 'doubleSpinBox_threshold'):
+            self.settings.setValue("threshold_db", widget.doubleSpinBox_threshold.value())
+        
+        # Umbral automático
+        if hasattr(widget, 'checkBox_auto_threshold'):
+            self.settings.setValue("auto_threshold", widget.checkBox_auto_threshold.isChecked())
+        
+        # Banda seleccionada (índice)
+        if hasattr(widget, 'comboBox_band'):
+            self.settings.setValue("band_index", widget.comboBox_band.currentIndex())
+        
+        # Visualización: mostrar umbral
+        if hasattr(widget, 'checkBox_show_threshold'):
+            self.settings.setValue("show_threshold", widget.checkBox_show_threshold.isChecked())
+        
+        # Visualización: mostrar ruido
+        if hasattr(widget, 'checkBox_show_noise'):
+            self.settings.setValue("show_noise", widget.checkBox_show_noise.isChecked())
+        
+        self.settings.endGroup()
+        self.logger.debug("   Detector settings saved")
     
     # ------------------------------------------------------------------------
     # LOAD CONFIGURATION
@@ -243,6 +337,8 @@ class ConfigManager:
         self._load_rf_settings(controller)
         self._load_fft_settings(controller)
         self._load_viz_settings(controller)
+        self._load_recording_settings(controller)
+        self._load_detector_settings(controller)     
         self._load_window_settings(controller)
         self._load_theme_settings(controller)
         self._load_artemis_settings(controller) 
@@ -341,14 +437,17 @@ class ConfigManager:
         self.logger.debug(
             f"   FFT loaded: {fft_size}, {window}, avg={averaging}, overlap={overlap}%"
         )
-    
+
+
+    # utils/config_manager.py
+
     def _load_viz_settings(self, controller) -> None:
-        """Loads visualization settings."""
+        """Loads visualization settings and APPLIES them to widgets."""
         if not hasattr(controller, 'viz_widget'):
             return
         
         self.settings.beginGroup("visualization")
-        color_map = self.settings.value("color_map", "Viridis", type=str)
+        color_map = self.settings.value("color_map", "viridis", type=str)
         persistence = self.settings.value("persistence", 50, type=int)
         plot_max = self.settings.value("plot_max", False, type=bool)
         plot_min = self.settings.value("plot_min", False, type=bool)
@@ -358,77 +457,67 @@ class ConfigManager:
         hold_seconds = self.settings.value("hold_seconds", 0, type=int)
         self.settings.endGroup()
         
-        controller.viz_widget.blockSignals(True)
+        self.logger.info(f"📂 Viz settings loaded: color={color_map}, persist={persistence}%, "
+                        f"max={plot_max}, min={plot_min}, range=[{min_threshold}, {max_threshold}], "
+                        f"hold={hold_mode}/{hold_seconds}s")
         
-        # Color map (by data, not display text)
-        idx = controller.viz_widget.comboBox_color_map.findData(color_map.lower())
+        viz = controller.viz_widget
+        viz.blockSignals(True)
+        
+        # ===== APLICAR COLOR MAP =====
+        idx = viz.comboBox_color_map.findData(color_map.lower())
         if idx < 0:
-            idx = controller.viz_widget.comboBox_color_map.findData('viridis')
+            idx = viz.comboBox_color_map.findData('viridis')
         if idx >= 0:
-            controller.viz_widget.comboBox_color_map.setCurrentIndex(idx)
+            viz.comboBox_color_map.setCurrentIndex(idx)
         
-        # Persistence
-        controller.viz_widget.horizontalSlider_persistence.setValue(persistence)
-        controller.viz_widget.label_persistence_value.setText(f"{persistence}%")
+        # ===== APLICAR PERSISTENCIA =====
+        viz.horizontalSlider_persistence.setValue(persistence)
+        viz.label_persistence_value.setText(f"{persistence}%")
+        controller.persistence_factor = persistence / 100.0
         
-        # Checkboxes
-        controller.viz_widget.checkBox_plot_max.setChecked(plot_max)
-        controller.viz_widget.checkBox_plot_min.setChecked(plot_min)
+        # ===== APLICAR MAX/MIN HOLD =====
+        controller.plot_max = plot_max
+        controller.plot_min = plot_min
+        viz.checkBox_plot_max.setChecked(plot_max)
+        viz.checkBox_plot_min.setChecked(plot_min)
         
-        # Thresholds
-        if hasattr(controller.viz_widget, 'min_spin'):
-            controller.viz_widget.min_spin.setValue(min_threshold)
-        if hasattr(controller.viz_widget, 'max_spin'):
-            controller.viz_widget.max_spin.setValue(max_threshold)
+        # Actualizar curvas en el spectrum plot
+        if hasattr(controller, 'spectrum_plot'):
+            controller.spectrum_plot.enable_max_hold(plot_max)
+            controller.spectrum_plot.enable_min_hold(plot_min)
         
-        # Hold mode
-        if hasattr(controller.viz_widget, 'comboBox_hold_time'):
+        # ===== APLICAR UMBRALES =====
+        if hasattr(viz, 'min_spin'):
+            viz.min_spin.setValue(min_threshold)
+        if hasattr(viz, 'max_spin'):
+            viz.max_spin.setValue(max_threshold)
+        
+        # Actualizar rango del waterfall
+        if hasattr(controller, 'waterfall'):
+            controller.waterfall.set_display_range(min_threshold, max_threshold)
+        
+        # Actualizar rango del medidor de potencia
+        if hasattr(controller, 'update_power_meter_range'):
+            controller.update_power_meter_range(min_threshold, max_threshold)
+        
+        # ===== APLICAR HOLD MODE =====
+        if hasattr(viz, 'comboBox_hold_time'):
             seconds_to_index = {0: 0, 1: 1, 2: 2, 5: 3, 10: 4, 30: 5, 60: 6}
             idx = seconds_to_index.get(hold_seconds, 0)
-            controller.viz_widget.comboBox_hold_time.setCurrentIndex(idx)
-            controller.viz_widget.hold_mode = hold_mode
-            controller.viz_widget.hold_seconds = hold_seconds
+            viz.comboBox_hold_time.setCurrentIndex(idx)
+            viz.hold_mode = hold_mode
+            viz.hold_seconds = hold_seconds
             
             if hold_mode == 'timed' and hold_seconds > 0:
-                controller.viz_widget.hold_timer.start(hold_seconds * 1000)
+                viz.hold_timer.start(hold_seconds * 1000)
             else:
-                controller.viz_widget.hold_timer.stop()
+                viz.hold_timer.stop()
         
-        controller.viz_widget.blockSignals(False)
+        viz.blockSignals(False)
         
-        self.logger.debug(
-            f"   Viz loaded: {color_map}, persist={persistence}%, "
-            f"range={min_threshold}/{max_threshold} dB, hold={hold_mode}/{hold_seconds}s"
-        )
-    
-    '''def _load_window_settings(self, controller) -> None:
-        """Loads window geometry and dock states."""
-        self.settings.beginGroup("window")
+        self.logger.info("✅ Visualization settings applied to widgets")
         
-        # Geometry
-        geometry = self.settings.value("geometry")
-        if geometry:
-            controller.restoreGeometry(geometry)
-        
-        # Window state
-        window_state = self.settings.value("windowState")
-        if window_state:
-            controller.restoreState(window_state)
-        
-        # Dock visibility states (apply after restoring state)
-        dock_states_json = self.settings.value("dock_states", "{}", type=str)
-        try:
-            dock_states = json.loads(dock_states_json)
-            for dock in controller.findChildren(QDockWidget):
-                if dock.objectName() in dock_states:
-                    dock.setVisible(dock_states[dock.objectName()])
-        except Exception:
-            pass
-        
-        self.settings.endGroup()
-        self.logger.debug("   Window settings loaded")
-
-    # utils/config_manager.py'''
 
     def _load_window_settings(self, controller) -> None:
         """Loads window geometry and dock states."""
@@ -439,6 +528,16 @@ class ConfigManager:
         if geometry:
             controller.restoreGeometry(geometry)
             self.logger.debug("   Window geometry restored")
+
+        # Restaurar posición del splitter principal
+        splitter_sizes_json = self.settings.value("splitter_spectrum_waterfall", None)
+        if splitter_sizes_json and hasattr(controller, 'splitter_main_vertical'):
+            try:
+                sizes = json.loads(splitter_sizes_json)
+                controller.splitter_main_vertical.setSizes(sizes)
+                self.logger.debug(f"   Splitter sizes restored: {sizes}")
+            except Exception as e:
+                self.logger.warning(f"   Error restoring splitter sizes: {e}")
         
         # 2. LUEGO restaurar estado de los docks (esto incluye visibilidad y posiciones)
         window_state = self.settings.value("windowState")
@@ -515,6 +614,110 @@ class ConfigManager:
             self.logger.debug("   No se encontró ruta válida de Artemis DB")
         
         self.settings.endGroup()
+
+
+
+    def _load_recording_settings(self, controller) -> None:
+        """Loads recording settings and applies them to IQ Manager widget."""
+        if not hasattr(controller, 'iq_manager'):
+            return
+        
+        self.settings.beginGroup("recording")
+        
+        mode = self.settings.value("mode", "continuous", type=str)
+        time_limit = self.settings.value("time_limit", 10, type=int)
+        size_limit_mb = self.settings.value("size_limit_mb", 100, type=int)
+        play_speed = self.settings.value("play_speed", 1, type=int)
+        play_loop = self.settings.value("play_loop", False, type=bool)
+        
+        self.settings.endGroup()
+        
+        iq_manager = controller.iq_manager
+        
+        # Aplicar modo de grabación
+        if hasattr(iq_manager, 'radio_record_continuous'):
+            if mode == "continuous":
+                iq_manager.radio_record_continuous.setChecked(True)
+            elif mode == "time":
+                iq_manager.radio_record_time.setChecked(True)
+            elif mode == "size":
+                iq_manager.radio_record_size.setChecked(True)
+            iq_manager._on_record_mode_changed()  # Actualizar visibilidad de controles
+        
+        # Aplicar límites
+        if hasattr(iq_manager, 'spinBox_record_duration'):
+            iq_manager.spinBox_record_duration.setValue(time_limit)
+        
+        if hasattr(iq_manager, 'spinBox_record_size'):
+            iq_manager.spinBox_record_size.setValue(size_limit_mb)
+        
+        # Aplicar velocidad de reproducción
+        if hasattr(iq_manager, 'spinBox_play_speed'):
+            iq_manager.spinBox_play_speed.setValue(play_speed)
+        
+        # Aplicar modo bucle
+        if hasattr(iq_manager, 'pushButton_play_loop'):
+            iq_manager.pushButton_play_loop.setChecked(play_loop)
+        
+        self.logger.info(f"📼 Recording settings loaded: mode={mode}, time={time_limit}s, size={size_limit_mb}MB, speed={play_speed}x, loop={play_loop}")
+
+
+    def _load_detector_settings(self, controller) -> None:
+        """Loads signal detector settings and applies them to widget."""
+        if not hasattr(controller, 'detector_widget'):
+            return
+        
+        self.settings.beginGroup("detector")
+        
+        mode_index = self.settings.value("mode_index", 2, type=int)       # Default: WIDE
+        min_bw_khz = self.settings.value("min_bw_khz", 4000, type=int)
+        max_bw_khz = self.settings.value("max_bw_khz", 10000, type=int)
+        threshold_db = self.settings.value("threshold_db", 6.0, type=float)
+        auto_threshold = self.settings.value("auto_threshold", True, type=bool)
+        band_index = self.settings.value("band_index", 1, type=int)       # Default: FM Broadcast
+        show_threshold = self.settings.value("show_threshold", True, type=bool)
+        show_noise = self.settings.value("show_noise", True, type=bool)
+        
+        self.settings.endGroup()
+        
+        widget = controller.detector_widget
+        widget.blockSignals(True)
+        
+        # Aplicar modo de detección
+        if hasattr(widget, 'comboBox_mode'):
+            widget.comboBox_mode.setCurrentIndex(mode_index)
+            widget.on_mode_changed(mode_index)  # Actualizar rangos
+        
+        # Aplicar anchos de banda
+        if hasattr(widget, 'spinBox_min_bw'):
+            widget.spinBox_min_bw.setValue(min_bw_khz)
+        if hasattr(widget, 'spinBox_max_bw'):
+            widget.spinBox_max_bw.setValue(max_bw_khz)
+        
+        # Aplicar umbral
+        if hasattr(widget, 'doubleSpinBox_threshold'):
+            widget.doubleSpinBox_threshold.setValue(threshold_db)
+        if hasattr(widget, 'checkBox_auto_threshold'):
+            widget.checkBox_auto_threshold.setChecked(auto_threshold)
+            widget.doubleSpinBox_threshold.setEnabled(not auto_threshold)
+        
+        # Aplicar banda seleccionada
+        if hasattr(widget, 'comboBox_band'):
+            widget.comboBox_band.setCurrentIndex(band_index)
+            if hasattr(widget, 'on_band_changed'):
+                widget.on_band_changed(band_index)
+        
+        # Aplicar visualización
+        if hasattr(widget, 'checkBox_show_threshold'):
+            widget.checkBox_show_threshold.setChecked(show_threshold)
+        if hasattr(widget, 'checkBox_show_noise'):
+            widget.checkBox_show_noise.setChecked(show_noise)
+        
+        widget.blockSignals(False)
+        
+        self.logger.info(f"📡 Detector settings loaded: mode={mode_index}, bw=[{min_bw_khz}-{max_bw_khz}]kHz, "
+                        f"threshold={threshold_db}dB, auto={auto_threshold}, band={band_index}, "
+                        f"show_threshold={show_threshold}, show_noise={show_noise}")
     
     # ------------------------------------------------------------------------
     # UTILITY METHODS

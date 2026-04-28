@@ -204,6 +204,15 @@ class RFController:
             # Habilitar botón de grabación en barra superior
             if hasattr(self.main, 'set_record_button_enabled'):
                 self.main.set_record_button_enabled(True)
+
+            # Actualizar estado visual del botón (gris oscuro, listo para grabar)
+            if hasattr(self.main, 'update_record_button_state'):
+                self.main.update_record_button_state(False)
+
+            # Actualizar indicador de modo
+            if hasattr(self.main, 'update_mode_indicator'):
+                self.main.update_mode_indicator('live')
+                self.logger.info("📻 Indicador de modo: LIVE")
                     
             # Update state
             self.main.is_running = True
@@ -488,6 +497,15 @@ class RFController:
             # Deshabilitar botón de grabación
             if hasattr(self.main, 'set_record_button_enabled'):
                 self.main.set_record_button_enabled(False)
+
+            # Actualizar estado visual del botón (gris deshabilitado)
+            if hasattr(self.main, 'update_record_button_state'):
+                self.main.update_record_button_state(False)
+
+            # Actualizar indicador de modo
+            if hasattr(self.main, 'update_mode_indicator'):
+                self.main.update_mode_indicator('idle')
+                self.logger.info("📻 Indicador de modo: ---")
                     
         except Exception as exc:
             self.logger.error(f"❌ Error in stop_rx: {exc}")

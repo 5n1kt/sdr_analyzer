@@ -455,11 +455,15 @@ class IQManagerWidget(QDockWidget):
         self.label_record_filename.setText(os.path.basename(filename))
         self._set_record_status(True)
         
-        # ===== NUEVO: Actualizar indicador de modo en barra superior =====
+        # Actualizar botón en barra superior - ROJO GRABANDO
+        if self.main_controller and hasattr(self.main_controller, 'update_record_button_state'):
+            self.main_controller.update_record_button_state(True)
+            self.logger.info("📻 Botón grabación: ROJO (grabando)")
+        
+        # Actualizar indicador de modo
         if self.main_controller and hasattr(self.main_controller, 'update_mode_indicator'):
             self.main_controller.update_mode_indicator('rec')
             self.logger.info("📻 Indicador de modo actualizado: REC")
-        # ================================================================
     
     def _on_recorder_stopped(self):
         """Handle recorder stopped signal."""
@@ -468,9 +472,14 @@ class IQManagerWidget(QDockWidget):
         self.ui_update_timer.stop()
         self._set_record_status(False)
         
-        # ===== NUEVO: Restaurar indicador de modo =====
+        # Actualizar botón en barra superior - ROJO OSCURO (listo para grabar)
+        if self.main_controller and hasattr(self.main_controller, 'update_record_button_state'):
+            self.main_controller.update_record_button_state(False)
+            self.logger.info("📻 Botón grabación: ROJO OSCURO (detenido)")
+        
+        # Restaurar indicador de modo
         if self.main_controller and hasattr(self.main_controller, 'update_mode_indicator'):
-            self.main_controller.update_mode_indicator()  # Auto-detectar
+            self.main_controller.update_mode_indicator()
             self.logger.info("📻 Indicador de modo restaurado")
     
     def _update_recording_ui(self, stats: dict) -> None:

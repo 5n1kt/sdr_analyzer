@@ -94,7 +94,8 @@ class ConfigManager:
         self._save_fft_settings(controller)
         self._save_viz_settings(controller)
         self._save_recording_settings(controller)
-        self._save_detector_settings(controller)      
+        self._save_detector_settings(controller)   
+        self._save_station_settings(controller)   
         self._save_window_settings(controller)
         self._save_theme_settings(controller)
         self._save_artemis_settings(controller)  
@@ -170,7 +171,16 @@ class ConfigManager:
         self.settings.endGroup()
         
         self.logger.debug("   Visualization settings saved")
-    
+
+    def _save_station_settings(self, controller) -> None:
+        """Guarda configuración de la estación."""
+        if not hasattr(controller, 'station_widget'):
+            return
+        
+        self.settings.beginGroup("station")
+        self.settings.setValue("id", controller.station_widget.get_station_id())
+        self.settings.endGroup()
+        
     def _save_window_settings(self, controller) -> None:
         """Saves window geometry and dock states."""
         self.settings.beginGroup("window")

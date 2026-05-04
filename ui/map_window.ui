@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MAPA TÁCTICO</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_main">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    
+    <!-- BARRA DE HERRAMIENTAS DEL MAPA -->
+    <item>
+     <widget class="QWidget" name="widget_map_toolbar" native="true">
+      <property name="minimumSize">
+       <size><width>0</width><height>36</height></size>
+      </property>
+      <property name="maximumSize">
+       <size><width>16777215</width><height>36</height></size>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_toolbar">
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+       
+       <item>
+        <widget class="QLabel" name="label_station_id">
+         <property name="text">
+          <string>EST-001</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QFrame" name="frame_toolbar_sep_1">
+         <property name="minimumSize">
+          <size><width>1</width><height>20</height></size>
+         </property>
+         <property name="maximumSize">
+          <size><width>1</width><height>20</height></size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::VLine</enum>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QPushButton" name="pushButton_center">
+         <property name="text">
+          <string>🎯 CENTRAR</string>
+         </property>
+         <property name="minimumSize">
+          <size><width>0</width><height>26</height></size>
+         </property>
+         <property name="toolTip">
+          <string>Centrar en posición actual</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QPushButton" name="pushButton_zoom_in">
+         <property name="text">
+          <string>➕</string>
+         </property>
+         <property name="minimumSize">
+          <size><width>30</width><height>26</height></size>
+         </property>
+         <property name="maximumSize">
+          <size><width>30</width><height>26</height></size>
+         </property>
+         <property name="toolTip">
+          <string>Acercar</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QPushButton" name="pushButton_zoom_out">
+         <property name="text">
+          <string>➖</string>
+         </property>
+         <property name="minimumSize">
+          <size><width>30</width><height>26</height></size>
+         </property>
+         <property name="maximumSize">
+          <size><width>30</width><height>26</height></size>
+         </property>
+         <property name="toolTip">
+          <string>Alejar</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QFrame" name="frame_toolbar_sep_2">
+         <property name="minimumSize">
+          <size><width>1</width><height>20</height></size>
+         </property>
+         <property name="maximumSize">
+          <size><width>1</width><height>20</height></size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::VLine</enum>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QComboBox" name="comboBox_map_layer">
+         <property name="minimumSize">
+          <size><width>120</width><height>0</height></size>
+         </property>
+         <property name="toolTip">
+          <string>Capa del mapa</string>
+         </property>
+         <item>
+          <property name="text"><string>Táctico Oscuro</string></property>
+         </item>
+         <item>
+          <property name="text"><string>OpenStreetMap</string></property>
+         </item>
+         <item>
+          <property name="text"><string>Satélite</string></property>
+         </item>
+         <item>
+          <property name="text"><string>Relieve</string></property>
+         </item>
+        </widget>
+       </item>
+       
+       <item>
+        <spacer name="horizontalSpacer_toolbar">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </spacer>
+       </item>
+       
+       <item>
+        <widget class="QPushButton" name="pushButton_measure">
+         <property name="text">
+          <string>📏 MEDIR</string>
+         </property>
+         <property name="minimumSize">
+          <size><width>0</width><height>26</height></size>
+         </property>
+         <property name="toolTip">
+          <string>Medir distancia entre puntos</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QPushButton" name="pushButton_add_marker">
+         <property name="text">
+          <string>📍 MARCAR</string>
+         </property>
+         <property name="minimumSize">
+          <size><width>0</width><height>26</height></size>
+         </property>
+         <property name="toolTip">
+          <string>Añadir marcador en posición del cursor</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    
+    <!-- MAPA -->
+    <item>
+     <widget class="QFrame" name="frame_map">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>1</horstretch>
+        <verstretch>1</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::NoFrame</enum>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_map">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+      </layout>
+     </widget>
+    </item>
+    
+    <!-- BARRA DE ESTADO INFERIOR -->
+    <item>
+     <widget class="QFrame" name="frame_status_bar">
+      <property name="minimumSize">
+       <size><width>0</width><height>28</height></size>
+      </property>
+      <property name="maximumSize">
+       <size><width>16777215</width><height>28</height></size>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_status">
+       <property name="spacing">
+        <number>12</number>
+       </property>
+       <property name="leftMargin">
+        <number>10</number>
+       </property>
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="rightMargin">
+        <number>10</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+       
+       <item>
+        <widget class="QLabel" name="label_cursor">
+         <property name="text">
+          <string>---, ---</string>
+         </property>
+         <property name="minimumSize">
+          <size><width>220</width><height>0</height></size>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <spacer name="horizontalSpacer_status">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </spacer>
+       </item>
+       
+       <item>
+        <widget class="QLabel" name="label_fix">
+         <property name="text">
+          <string>---</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QLabel" name="label_sats">
+         <property name="text">
+          <string>0 sat</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QLabel" name="label_prec">
+         <property name="text">
+          <string>---</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QLabel" name="label_time">
+         <property name="text">
+          <string>--:--:--</string>
+         </property>
+        </widget>
+       </item>
+       
+       <item>
+        <widget class="QLabel" name="label_alt">
+         <property name="text">
+          <string>---</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+</ui>

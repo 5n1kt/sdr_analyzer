@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DockWidget</class>
+ <widget class="QDockWidget" name="DockWidget">
+  <property name="windowTitle">
+   <string>ESTACIÓN</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QVBoxLayout" name="verticalLayout_main">
+    <property name="spacing">
+     <number>3</number>
+    </property>
+    <property name="leftMargin">
+     <number>5</number>
+    </property>
+    <property name="topMargin">
+     <number>3</number>
+    </property>
+    <property name="rightMargin">
+     <number>5</number>
+    </property>
+    <property name="bottomMargin">
+     <number>5</number>
+    </property>
+
+    <!-- CABECERA SIEMPRE VISIBLE -->
+    <item>
+     <widget class="QFrame" name="frame_header">
+      <property name="minimumSize">
+       <size><width>0</width><height>32</height></size>
+      </property>
+      <property name="maximumSize">
+       <size><width>16777215</width><height>32</height></size>
+      </property>
+      <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+      <layout class="QHBoxLayout" name="horizontalLayout_header">
+       <property name="spacing"><number>6</number></property>
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
+       <item>
+        <widget class="QLabel" name="label_status_led">
+         <property name="text"><string>🟢</string></property>
+         <property name="font"><font><pointsize>12</pointsize></font></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_id">
+         <property name="text"><string>EST-001</string></property>
+         <property name="font"><font><weight>75</weight><bold>true</bold><pointsize>10</pointsize></font></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_header_info">
+         <property name="text"><string>14:32 | 19.43, -99.13</string></property>
+         <property name="styleSheet"><string notr="true">color: #888; font-size: 8pt;</string></property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_header">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+        </spacer>
+       </item>
+       <!-- BOTÓN DESACOPLAR MAPA -->
+       <item>
+        <widget class="QPushButton" name="pushButton_detach">
+         <property name="minimumSize"><size><width>22</width><height>22</height></size></property>
+         <property name="maximumSize"><size><width>22</width><height>22</height></size></property>
+         <property name="text"><string>🗖</string></property>
+         <property name="cursor"><cursorShape>PointingHandCursor</cursorShape></property>
+         <property name="toolTip"><string>Abrir mapa en ventana separada</string></property>
+         <property name="styleSheet">
+          <string notr="true">
+           QPushButton { background: transparent; border: 1px solid #444; border-radius: 2px; font-size: 9pt; }
+           QPushButton:hover { background: #333; border-color: #666; }
+          </string>
+         </property>
+        </widget>
+       </item>
+       <!-- BOTÓN EXPANDIR/COLAPSAR -->
+       <item>
+        <widget class="QPushButton" name="pushButton_toggle">
+         <property name="minimumSize"><size><width>22</width><height>22</height></size></property>
+         <property name="maximumSize"><size><width>22</width><height>22</height></size></property>
+         <property name="text"><string>▼</string></property>
+         <property name="cursor"><cursorShape>PointingHandCursor</cursorShape></property>
+         <property name="toolTip"><string>Expandir/Colapsar detalles</string></property>
+         <property name="styleSheet">
+          <string notr="true">
+           QPushButton { background: transparent; border: 1px solid #444; border-radius: 2px; color: #aaa; font-weight: bold; font-size: 9pt; }
+           QPushButton:hover { background: #333; color: #fff; border-color: #666; }
+          </string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- DETALLES COLAPSABLES -->
+    <item>
+     <widget class="QWidget" name="widget_details">
+      <property name="visible"><bool>false</bool></property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch><verstretch>1</verstretch>
+       </sizepolicy>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_details">
+       <property name="spacing"><number>3</number></property>
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
+
+       <!-- NOMBRE -->
+       <item>
+        <widget class="QLineEdit" name="lineEdit_name">
+         <property name="minimumSize"><size><width>0</width><height>26</height></size></property>
+         <property name="maximumSize"><size><width>16777215</width><height>26</height></size></property>
+         <property name="text"><string>ESTACIÓN NORTE</string></property>
+         <property name="placeholderText"><string>NOMBRE DE ESTACIÓN</string></property>
+         <property name="styleSheet"><string notr="true">font-weight: bold; text-transform: uppercase;</string></property>
+        </widget>
+       </item>
+
+       <!-- HORA + POSICIÓN -->
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_info_columns">
+         <property name="spacing"><number>4</number></property>
+         <item>
+          <widget class="QGroupBox" name="groupBox_time">
+           <property name="title"><string>HORA</string></property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch><verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <layout class="QFormLayout" name="formLayout_time">
+            <property name="horizontalSpacing"><number>4</number></property>
+            <property name="verticalSpacing"><number>1</number></property>
+            <property name="leftMargin"><number>4</number></property>
+            <property name="topMargin"><number>4</number></property>
+            <property name="rightMargin"><number>4</number></property>
+            <property name="bottomMargin"><number>4</number></property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_local_title"><property name="text"><string>Local:</string></property></widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLabel" name="label_local_time"><property name="text"><string>--:--:--</string></property></widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_utc_title"><property name="text"><string>UTC:</string></property></widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLabel" name="label_utc_time"><property name="text"><string>--:--:--</string></property></widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_date_title"><property name="text"><string>Fecha:</string></property></widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLabel" name="label_date"><property name="text"><string>----</string></property></widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_position">
+           <property name="title"><string>POSICIÓN</string></property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch><verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <layout class="QFormLayout" name="formLayout_position">
+            <property name="horizontalSpacing"><number>4</number></property>
+            <property name="verticalSpacing"><number>1</number></property>
+            <property name="leftMargin"><number>4</number></property>
+            <property name="topMargin"><number>4</number></property>
+            <property name="rightMargin"><number>4</number></property>
+            <property name="bottomMargin"><number>4</number></property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_lat_title"><property name="text"><string>Lat:</string></property></widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLabel" name="label_lat"><property name="text"><string>---</string></property></widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_lon_title"><property name="text"><string>Lon:</string></property></widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLabel" name="label_lon"><property name="text"><string>---</string></property></widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_alt_title"><property name="text"><string>Alt:</string></property></widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLabel" name="label_alt"><property name="text"><string>---</string></property></widget>
+            </item>
+            <item row="3" column="0" colspan="2">
+             <widget class="QLabel" name="label_gps_status">
+              <property name="text"><string>Fix: --- | Sats: 0 | Prec: ---</string></property>
+              <property name="styleSheet"><string notr="true">color: #888; font-size: 7pt;</string></property>
+             </widget>
+            </item>
+            <item row="4" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_buttons">
+              <property name="spacing"><number>2</number></property>
+              <item>
+               <widget class="QPushButton" name="pushButton_gps_update">
+                <property name="text"><string>GPS</string></property>
+                <property name="minimumSize"><size><width>40</width><height>22</height></size></property>
+                <property name="maximumSize"><size><width>50</width><height>22</height></size></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_manual_pos">
+                <property name="text"><string>MAN</string></property>
+                <property name="minimumSize"><size><width>40</width><height>22</height></size></property>
+                <property name="maximumSize"><size><width>50</width><height>22</height></size></property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </item>
+
+       <!-- MAPA COMPACTO -->
+       <item>
+        <widget class="QFrame" name="frame_map_compact">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>0</horstretch><verstretch>1</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize"><size><width>200</width><height>200</height></size></property>
+         <property name="frameShape"><enum>QFrame::StyledPanel</enum></property>
+         <property name="styleSheet">
+          <string notr="true">QFrame#frame_map_compact { background-color: #0d1218; border: 1px solid #2a3a4a; }</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_map_compact">
+          <property name="spacing"><number>0</number></property>
+          <property name="leftMargin"><number>0</number></property>
+          <property name="topMargin"><number>0</number></property>
+          <property name="rightMargin"><number>0</number></property>
+          <property name="bottomMargin"><number>0</number></property>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+</ui>

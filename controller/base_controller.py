@@ -43,6 +43,8 @@ from controller.audio_controller import AudioController
 
 from controller.tscm_controller import TSCMController
 
+from widgets.station_info_widget import StationInfoWidget
+
 
 from utils.theme_manager import ThemeManager
 from utils.config_manager import ConfigManager
@@ -78,6 +80,9 @@ class MainController(QMainWindow):
         # Cargar UI principal
         loadUi('ui/mainwindow.ui', self)
 
+        self._init_station_widget()
+
+
        
         # ===== INICIALIZAR COMPONENTES =====
         self._init_components()
@@ -106,6 +111,13 @@ class MainController(QMainWindow):
         # Cargar configuración
         self.config_manager.load_all_settings(self)
 
+        # Inicializar estación
+        '''if hasattr(self, 'station_widget'):
+            # Cargar ID guardado o usar valor por defecto
+            station_id = self.config_manager.settings.value("station/id", "EST-001", type=str)
+            self.station_widget.set_station_id(station_id)
+            self.logger.info(f"📻 Estación: {station_id}")'''
+
 
         # AHORA, después de cargar la configuración, intentar cargar Artemis
         if hasattr(self, 'artemis_widget') and hasattr(self.artemis_widget, 'auto_load_from_config'):
@@ -120,6 +132,12 @@ class MainController(QMainWindow):
             self.logger.info("✅ Callback de metadata conectado")
         
         self.logger.info("✅ Controlador principal inicializado")
+
+    def _init_station_widget(self):
+        """Inicializa el widget de estación."""
+        if hasattr(self, 'station_widget'):
+            station_id = self.config_manager.settings.value("station/id", "EST-001", type=str)
+            self.station_widget.set_station_id(station_id)
     
     def _init_components(self):
         """Inicializa los componentes básicos"""
@@ -989,3 +1007,38 @@ class MainController(QMainWindow):
         self.label_mode_indicator.setToolTip(config['tooltip'])
         
         self.logger.info(f"📻 Indicador de modo: {config['text']}")
+
+
+
+    def _init_gps(self):
+        """Inicializa GPS si está disponible."""
+        try:
+            import gps
+            self.gps_session = gps.gps(mode=gps.WATCH_ENABLE)
+            self.gps_timer = QTimer()
+            self.gps_timer.timeout.connect(self._poll_gps)
+            self.gps_timer.start(1000)  # Cada segundo
+            self.logger.info("📍 GPS inicializado")
+        except ImportError:
+            self.logger.info("📍 gpsd no disponible")
+        except Exception as e:
+            self.logger.debug(f"GPS: {e}")
+
+    def _poll_gps(self):
+        """Lee datos del GPS."""
+        try:
+            if hasattr(self, 'gps_session'):
+                report = self.gps_session.next()
+                if report.get('class') == 'TPV':
+                    data = {
+                        'lat': getattr(report, 'lat', 0),
+                        'lon': getattr(report, 'lon', 0),
+                        'alt': getattr(report, 'alt', 0),
+                        'fix': getattr(report, 'mode', 0),
+                        'sats': getattr(self.gps_session, 'satellites_used', 0),
+                        'precision': getattr(report, 'epx', 0) or getattr(report, 'eph', 0)
+                    }
+                    if hasattr(self, 'station_widget'):
+                        self.station_widget.update_gps(data)
+        except Exception:
+            pass

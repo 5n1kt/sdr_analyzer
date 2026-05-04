@@ -30,6 +30,8 @@ from widgets.artemis_widget import ArtemisWidget
 
 from widgets.tscm_widget import TSCMWidget
 
+from widgets.station_info_widget import StationInfoWidget  
+
 
 # ============================================================================
 # UI CONTROLLER
@@ -97,6 +99,10 @@ class UIController:
         self.main.tscm_widget = TSCMWidget(self.main)
         self.main.tscm_widget.setObjectName("dock_tscm")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.tscm_widget)
+
+        self.main.station_widget = StationInfoWidget(self.main)
+        self.main.station_widget.setObjectName("dock_station")
+        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.station_widget)
        
         
         # Conectar señal de sintonización
@@ -286,6 +292,11 @@ class UIController:
             view_menu.addAction(action)
         
         view_menu.addSeparator()
+
+        if hasattr(self.main, 'station_widget'):
+            action = self.main.station_widget.toggleViewAction()
+            action.setText("Estación")
+            view_menu.addAction(action)
         
         if hasattr(self.main, 'audio_widget'):
             action = self.main.audio_widget.toggleViewAction()

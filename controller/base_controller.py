@@ -214,18 +214,21 @@ class MainController(QMainWindow):
             self.viz_widget.set_main_controller(self)
             self.logger.info("🔗 VisualizationWidget conectado al MainController")
 
-
         if hasattr(self, 'artemis_widget'):
             self.artemis_widget.database_loaded.connect(self._on_artemis_db_loaded)
             self.logger.info("🔗 ArtemisWidget conectado para guardar configuración")
 
-        # TSCM Widget
-        self.tscm_widget = TSCMWidget(self)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.tscm_widget)
-        
-        # Conectar TSCM Controller con su Widget
-        self.tscm_ctrl.set_widget(self.tscm_widget)
-        
+        if hasattr(self, 'tscm_widget') and self.tscm_widget is not None:
+            # Conectar el widget al controlador
+            self.tscm_widget.set_main_controller(self)
+            self.logger.info("🔗 TSCMWidget conectado al MainController")
+            
+            # Conectar TSCM Controller con su Widget
+            self.tscm_ctrl.set_widget(self.tscm_widget)
+            self.logger.info("🔗 TSCMController conectado al TSCMWidget")
+        else:
+            self.logger.error("❌ TSCMWidget no existe después de setup_dock_widgets")
+            
         # Conectar FFTController con TSCMController
         if hasattr(self, 'fft_ctrl'):
             self.fft_ctrl.set_tscm_controller(self.tscm_ctrl)

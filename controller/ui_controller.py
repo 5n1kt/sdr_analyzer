@@ -79,10 +79,10 @@ class UIController:
         self.main.audio_widget.setObjectName("dock_audio")
         self.main.addDockWidget(Qt.LeftDockWidgetArea, self.main.audio_widget)
         
-        # 5. Detector
-        self.main.detector_widget = self.main.detector_ctrl.create_widget()
-        self.main.detector_widget.setObjectName("dock_signal_detector")
-        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.detector_widget)
+        #5. Station Info
+        self.main.station_widget = StationInfoWidget(self.main)
+        self.main.station_widget.setObjectName("dock_station")
+        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.station_widget)
         
         # 6. IQ Manager
         self.main.iq_manager = IQManagerWidget(self.main)
@@ -95,16 +95,20 @@ class UIController:
         self.main.artemis_widget.setObjectName("dock_artemis")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.artemis_widget)
         
-        # 8. TSCM
+        # 5. Detector
+        self.main.detector_widget = self.main.detector_ctrl.create_widget()
+        self.main.detector_widget.setObjectName("dock_signal_detector")
+        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.detector_widget)
+
+        self.main.splitDockWidget(self.main.station_widget, self.main.detector_widget, Qt.Horizontal)
+
+
+        # 8. TSCM - Crear UNA SOLA VEZ
         self.main.tscm_widget = TSCMWidget(self.main)
         self.main.tscm_widget.setObjectName("dock_tscm")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.tscm_widget)
-
-        self.main.station_widget = StationInfoWidget(self.main)
-        self.main.station_widget.setObjectName("dock_station")
-        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.station_widget)
-       
-        
+        self.logger.info("✅ TSCM Widget creado en setup_dock_widgets")
+      
         # Conectar señal de sintonización
         self.main.artemis_widget.signal_selected.connect(
             self.main.on_frequency_changed_from_plot

@@ -2,16 +2,8 @@
 <ui version="4.0">
  <class>DockWidget</class>
  <widget class="QDockWidget" name="DockWidget">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>320</width>
-    <height>480</height>
-   </rect>
-  </property>
   <property name="windowTitle">
-   <string>Análisis Diferencial</string>
+   <string>ANÁLISIS Δ (TSCM)</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
    <layout class="QVBoxLayout" name="verticalLayout_main">
@@ -19,259 +11,693 @@
      <number>6</number>
     </property>
     <property name="leftMargin">
-     <number>8</number>
+     <number>6</number>
     </property>
     <property name="topMargin">
-     <number>8</number>
+     <number>6</number>
     </property>
     <property name="rightMargin">
-     <number>8</number>
+     <number>6</number>
     </property>
     <property name="bottomMargin">
-     <number>8</number>
+     <number>6</number>
     </property>
+
+    <!-- ====== ESTADO ====== -->
     <item>
-     <widget class="QLabel" name="label_baseline_status">
-      <property name="styleSheet">
-       <string notr="true">font-weight: bold; padding: 8px; background-color: #2a2a2a; border-radius: 4px;</string>
-      </property>
-      <property name="text">
-       <string>⚪ Sin Baseline Capturada</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_baseline">
-      <property name="spacing">
-       <number>4</number>
-      </property>
-      <item>
-       <widget class="QPushButton" name="pushButton_capture_baseline">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>32</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string>Captura el espectro actual como referencia de ambiente RF normal</string>
-        </property>
-        <property name="text">
-         <string>📸 CAPTURAR BASELINE</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pushButton_clear_baseline">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>32</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>40</width>
-          <height>32</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string>Eliminar baseline capturada</string>
-        </property>
-        <property name="text">
-         <string>🗑️</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="Line" name="line_separator_1">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="pushButton_diff_mode">
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>36</height>
-       </size>
-      </property>
-      <property name="toolTip">
-       <string>Activa el análisis diferencial: solo muestra señales nuevas vs la baseline</string>
-      </property>
-      <property name="text">
-       <string>🔴 ACTIVAR MODO DIFERENCIAS</string>
-      </property>
-      <property name="checkable">
-       <bool>true</bool>
-      </property>
-      <property name="checked">
-       <bool>false</bool>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <layout class="QFormLayout" name="formLayout_params">
-      <property name="horizontalSpacing">
-       <number>8</number>
-      </property>
-      <property name="verticalSpacing">
-       <number>4</number>
-      </property>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_threshold">
-        <property name="text">
-         <string>Umbral de Alerta:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_threshold">
-        <property name="suffix">
-         <string> dB</string>
-        </property>
-        <property name="decimals">
-         <number>1</number>
-        </property>
-        <property name="minimum">
-         <double>0.500000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>30.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>4.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_dwell">
-        <property name="text">
-         <string>Confirmación:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSpinBox" name="spinBox_dwell">
-        <property name="suffix">
-         <string> ms</string>
-        </property>
-        <property name="minimum">
-         <number>50</number>
-        </property>
-        <property name="maximum">
-         <number>1000</number>
-        </property>
-        <property name="singleStep">
-         <number>50</number>
-        </property>
-        <property name="value">
-         <number>200</number>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="Line" name="line_separator_2">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QGroupBox" name="groupBox_stats">
+     <widget class="QGroupBox" name="groupBox_status">
       <property name="title">
-       <string>📊 ESTADÍSTICAS</string>
+       <string>ESTADO</string>
       </property>
-      <layout class="QFormLayout" name="formLayout_stats">
-       <property name="horizontalSpacing">
+      <layout class="QHBoxLayout" name="horizontalLayout_status">
+       <property name="spacing">
         <number>8</number>
        </property>
-       <property name="verticalSpacing">
-        <number>2</number>
+       <property name="leftMargin">
+        <number>8</number>
        </property>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_active_alerts_title">
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>6</number>
+       </property>
+
+       <item>
+        <widget class="QLabel" name="label_baseline_icon">
+         <property name="minimumSize">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
          <property name="text">
-          <string>Alertas activas:</string>
+          <string>⚪</string>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string>Estado de la baseline: ⚪ sin baseline, 🟢 capturada</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="label_active_alerts">
+
+       <item>
+        <widget class="QLabel" name="label_baseline_status">
+         <property name="text">
+          <string>SIN BASELINE</string>
+         </property>
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
+        </widget>
+       </item>
+
+       <item>
+        <spacer name="horizontalSpacer_status">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+
+       <item>
+        <widget class="QLabel" name="label_mode_indicator">
+         <property name="minimumSize">
+          <size>
+           <width>60</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>INACTIVO</string>
+         </property>
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
          <property name="styleSheet">
-          <string notr="true">font-weight: bold; color: #00ff00;</string>
-         </property>
-         <property name="text">
-          <string>0</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_last_detection_title">
-         <property name="text">
-          <string>Última detección:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QLabel" name="label_last_detection">
-         <property name="text">
-          <string>--:--:--</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="label_frequencies_title">
-         <property name="text">
-          <string>Frecuencias:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QLabel" name="label_frequencies">
-         <property name="text">
-          <string>-</string>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
+          <string notr="true">color: #888888;</string>
          </property>
         </widget>
        </item>
       </layout>
      </widget>
     </item>
+
+    <!-- ====== CAPTURA DE BASELINE ====== -->
     <item>
-     <widget class="QCheckBox" name="checkBox_sound_alert">
-      <property name="text">
-       <string>🔊 Sonido de alerta</string>
+     <widget class="QGroupBox" name="groupBox_capture">
+      <property name="title">
+       <string>CAPTURA</string>
       </property>
-      <property name="checked">
-       <bool>false</bool>
-      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_capture">
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <property name="leftMargin">
+        <number>6</number>
+       </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>6</number>
+       </property>
+       <property name="bottomMargin">
+        <number>6</number>
+       </property>
+
+       <item>
+        <layout class="QGridLayout" name="gridLayout_capture">
+         <property name="horizontalSpacing">
+          <number>8</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>4</number>
+         </property>
+
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_capture_time">
+           <property name="text">
+            <string>Tiempo:</string>
+           </property>
+           <property name="toolTip">
+            <string>Duración de la captura para promediar la baseline. Mayor tiempo = baseline más estable</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="0" column="1">
+          <widget class="QComboBox" name="comboBox_capture_time">
+           <property name="minimumSize">
+            <size>
+             <width>80</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Más tiempo = baseline más precisa y estable</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>1 seg</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>2 seg</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>3 seg</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>5 seg</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>10 seg</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+
+         <item row="0" column="2">
+          <widget class="QLabel" name="label_capture_info">
+           <property name="text">
+            <string>~30 frames/prom</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">color: #888888; font-size: 7pt;</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="1" column="0" colspan="3">
+          <layout class="QHBoxLayout" name="horizontalLayout_capture_buttons">
+           <property name="spacing">
+            <number>6</number>
+           </property>
+
+           <item>
+            <widget class="QPushButton" name="pushButton_capture_baseline">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>32</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>📸 CAPTURAR BASELINE</string>
+             </property>
+             <property name="toolTip">
+              <string>Inicia la captura de la baseline. Captura el espectro actual durante el tiempo configurado</string>
+             </property>
+            </widget>
+           </item>
+
+           <item>
+            <widget class="QPushButton" name="pushButton_clear_baseline">
+             <property name="minimumSize">
+              <size>
+               <width>32</width>
+               <height>32</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>32</width>
+               <height>32</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>🗑️</string>
+             </property>
+             <property name="toolTip">
+              <string>Eliminar la baseline capturada</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+
+       <item>
+        <widget class="QProgressBar" name="progressBar_capture">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>10</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>10</height>
+          </size>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+         <property name="textVisible">
+          <bool>false</bool>
+         </property>
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
+
+    <!-- ====== ANÁLISIS DIFERENCIAL ====== -->
     <item>
-     <widget class="QPushButton" name="pushButton_export_log">
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>28</height>
-       </size>
+     <widget class="QGroupBox" name="groupBox_analysis">
+      <property name="title">
+       <string>ANÁLISIS</string>
       </property>
-      <property name="text">
-       <string>📤 EXPORTAR LOG DE ALERTAS</string>
-      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_analysis">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <property name="leftMargin">
+        <number>6</number>
+       </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>6</number>
+       </property>
+       <property name="bottomMargin">
+        <number>6</number>
+       </property>
+
+       <!-- Botón de activación -->
+       <item>
+        <widget class="QPushButton" name="pushButton_diff_mode">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>38</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>▶ ACTIVAR MODO Δ</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <property name="toolTip">
+          <string>Activa/desactiva el modo de análisis diferencial. Detecta cambios en el espectro</string>
+         </property>
+        </widget>
+       </item>
+
+       <!-- Parámetros -->
+       <item>
+        <layout class="QGridLayout" name="gridLayout_params">
+         <property name="horizontalSpacing">
+          <number>12</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>6</number>
+         </property>
+
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_threshold">
+           <property name="text">
+            <string>Umbral:</string>
+           </property>
+           <property name="toolTip">
+            <string>Diferencia en dB necesaria para generar una alerta. Valores más bajos = más sensible</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="0" column="1">
+          <widget class="QDoubleSpinBox" name="doubleSpinBox_threshold">
+           <property name="decimals">
+            <number>1</number>
+           </property>
+           <property name="minimum">
+            <double>0.5</double>
+           </property>
+           <property name="maximum">
+            <double>30.0</double>
+           </property>
+           <property name="singleStep">
+            <double>0.5</double>
+           </property>
+           <property name="value">
+            <double>4.0</double>
+           </property>
+           <property name="suffix">
+            <string> dB</string>
+           </property>
+           <property name="toolTip">
+            <string>Umbral de diferencia para detección (1-30 dB)</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="0" column="2">
+          <widget class="QLabel" name="label_threshold_info">
+           <property name="text">
+            <string>menor = + sensible</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">color: #888888; font-size: 7pt;</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_dwell">
+           <property name="text">
+            <string>Confirmar:</string>
+           </property>
+           <property name="toolTip">
+            <string>Tiempo que una señal debe mantenerse para considerarla alerta válida</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="spinBox_dwell">
+           <property name="minimum">
+            <number>50</number>
+           </property>
+           <property name="maximum">
+            <number>1000</number>
+           </property>
+           <property name="singleStep">
+            <number>50</number>
+           </property>
+           <property name="value">
+            <number>200</number>
+           </property>
+           <property name="suffix">
+            <string> ms</string>
+           </property>
+           <property name="toolTip">
+            <string>Tiempo de persistencia antes de activar alerta (50-1000 ms)</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="1" column="2">
+          <widget class="QLabel" name="label_dwell_info">
+           <property name="text">
+            <string>evita falsos</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">color: #888888; font-size: 7pt;</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
      </widget>
     </item>
+
+    <!-- ====== RESULTADOS ====== -->
+    <item>
+     <widget class="QGroupBox" name="groupBox_results">
+      <property name="title">
+       <string>RESULTADOS</string>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_results">
+       <property name="spacing">
+        <number>12</number>
+       </property>
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>8</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>8</number>
+       </property>
+
+       <!-- Contador de alertas -->
+       <item>
+        <widget class="QFrame" name="frame_alerts">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_alerts">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="leftMargin">
+           <number>4</number>
+          </property>
+          <property name="topMargin">
+           <number>4</number>
+          </property>
+          <property name="rightMargin">
+           <number>4</number>
+          </property>
+          <property name="bottomMargin">
+           <number>4</number>
+          </property>
+
+          <item>
+           <widget class="QLabel" name="label_alerts_title">
+            <property name="text">
+             <string>ALERTAS</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #888888; font-size: 7pt;</string>
+            </property>
+           </widget>
+          </item>
+
+          <item>
+           <widget class="QLabel" name="label_active_alerts">
+            <property name="text">
+             <string>0</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">font-size: 20pt; font-weight: bold; color: #00ff00; font-family: monospace;</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+
+       <!-- Separador -->
+       <item>
+        <widget class="QFrame" name="frame_separator">
+         <property name="minimumSize">
+          <size>
+           <width>1</width>
+           <height>40</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>1</width>
+           <height>40</height>
+          </size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::VLine</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Sunken</enum>
+         </property>
+        </widget>
+       </item>
+
+       <!-- Última alerta -->
+       <item>
+        <widget class="QFrame" name="frame_last_alert">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_last_alert">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="leftMargin">
+           <number>4</number>
+          </property>
+          <property name="topMargin">
+           <number>4</number>
+          </property>
+          <property name="rightMargin">
+           <number>4</number>
+          </property>
+          <property name="bottomMargin">
+           <number>4</number>
+          </property>
+
+          <item>
+           <widget class="QLabel" name="label_last_title">
+            <property name="text">
+             <string>ÚLTIMA</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #888888; font-size: 7pt;</string>
+            </property>
+           </widget>
+          </item>
+
+          <item>
+           <widget class="QLabel" name="label_last_alert">
+            <property name="text">
+             <string>--:--:--</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">font-size: 11pt; font-weight: bold; color: #aaaaaa; font-family: monospace;</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- ====== AUDIO ====== -->
+    <item>
+     <widget class="QGroupBox" name="groupBox_audio">
+      <property name="title">
+       <string>AUDIO</string>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_audio">
+       <property name="spacing">
+        <number>8</number>
+       </property>
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>6</number>
+       </property>
+
+       <item>
+        <widget class="QCheckBox" name="checkBox_sound_alert">
+         <property name="text">
+          <string>🔊 Sonido</string>
+         </property>
+         <property name="toolTip">
+          <string>Activa/desactiva alertas sonoras al detectar señales</string>
+         </property>
+        </widget>
+       </item>
+
+       <item>
+        <spacer name="horizontalSpacer_audio">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+
+       <item>
+        <widget class="QPushButton" name="pushButton_export_log">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>28</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>📄 EXPORTAR</string>
+         </property>
+         <property name="toolTip">
+          <string>Exportar log de alertas a archivo CSV</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
     <item>
      <spacer name="verticalSpacer">
       <property name="orientation">
@@ -280,7 +706,7 @@
       <property name="sizeHint" stdset="0">
        <size>
         <width>20</width>
-        <height>20</height>
+        <height>10</height>
        </size>
       </property>
      </spacer>
@@ -288,6 +714,16 @@
    </layout>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>comboBox_capture_time</tabstop>
+  <tabstop>pushButton_capture_baseline</tabstop>
+  <tabstop>pushButton_clear_baseline</tabstop>
+  <tabstop>pushButton_diff_mode</tabstop>
+  <tabstop>doubleSpinBox_threshold</tabstop>
+  <tabstop>spinBox_dwell</tabstop>
+  <tabstop>checkBox_sound_alert</tabstop>
+  <tabstop>pushButton_export_log</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

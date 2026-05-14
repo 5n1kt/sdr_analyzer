@@ -216,6 +216,8 @@ class FFTController:
     # ------------------------------------------------------------------------
     # controller/fft_controller.py
 
+    # controller/fft_controller.py
+
     def update_spectrum(self, fft_data: np.ndarray) -> None:
         """Update all visualizations with new FFT frame."""
         try:
@@ -231,7 +233,7 @@ class FFTController:
                 fft_size,
             )
             
-            # Aplicar persistencia normal
+            # Aplicar persistencia
             p = float(getattr(self.main, 'persistence_factor', 0.0))
             alpha = 1.0 - float(np.clip(p, 0.0, 0.99))
             
@@ -240,9 +242,7 @@ class FFTController:
             if self._prev_spectrum is None or len(self._prev_spectrum) != fft_size:
                 displayed = fft_f32.copy()
             else:
-                displayed = (
-                    alpha * fft_f32 + (1.0 - alpha) * self._prev_spectrum
-                ).astype(np.float32)
+                displayed = (alpha * fft_f32 + (1.0 - alpha) * self._prev_spectrum).astype(np.float32)
             
             self._prev_spectrum = displayed.copy()
             
@@ -254,35 +254,51 @@ class FFTController:
             else:
                 self._update_hold_buffers(fft_data, fft_size)
             
-            # --- INTEGRACIÓN TSCM ---
+            # ===== LÓGICA TSCM CORREGIDA =====
             baseline_to_plot = None
+            plot_max = None
+            plot_min = None
+            plot_baseline = None
+            
             if self._tscm_controller and self._tscm_controller.is_diff_mode_active():
+                # MODO DIFERENCIAL ACTIVO
                 plot_spectrum, baseline_to_plot = self._tscm_controller.process_spectrum(
                     displayed, freq_axis_mhz
                 )
+                # NO mostrar max/min en modo diferencial
                 plot_max = None
                 plot_min = None
+                plot_baseline = baseline_to_plot
             else:
+                # MODO NORMAL: mostrar espectro normal
                 plot_spectrum = displayed
-                plot_max = self.main.max_hold if self.main.plot_max else None
-                plot_min = self.main.min_hold if self.main.plot_min else None
-            # -------------------------
+                
+                # Mostrar max/min SOLO si están habilitados por el usuario
+                if self.main.plot_max:
+                    plot_max = self.main.max_hold
+                if self.main.plot_min:
+                    plot_min = self.main.min_hold
+                
+                # NO mostrar baseline
+                plot_baseline = None
             
-            # Actualizar waterfall
+            # ===== ACTUALIZAR WATERFALL =====
             self._update_waterfall(
                 plot_spectrum, freq_axis_mhz, center_freq_mhz, sample_rate_mhz,
                 alpha=alpha,
             )
             
-            # Actualizar spectrum plot
+            # ===== ACTUALIZAR SPECTRUM PLOT =====
             if hasattr(self.main, 'spectrum_plot'):
-                if baseline_to_plot is not None:
+                if plot_baseline is not None:
+                    # Modo TSCM: mostrar con baseline
                     self.main.spectrum_plot.update_plot_with_baseline(
                         plot_spectrum, freq_axis_mhz,
                         max_hold=plot_max, min_hold=plot_min,
-                        baseline=baseline_to_plot
+                        baseline=plot_baseline
                     )
                 else:
+                    # Modo normal: mostrar sin baseline
                     self.main.spectrum_plot.update_plot(
                         plot_spectrum, freq_axis_mhz,
                         max_hold=plot_max, min_hold=plot_min

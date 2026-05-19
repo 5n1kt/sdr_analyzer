@@ -215,10 +215,7 @@ class FFTController:
     # SPECTRUM UPDATE
     # ------------------------------------------------------------------------
     # controller/fft_controller.py
-
-    # controller/fft_controller.py
-
-    def update_spectrum(self, fft_data: np.ndarray) -> None:
+    '''def update_spectrum(self, fft_data: np.ndarray) -> None:
         """Update all visualizations with new FFT frame."""
         try:
             sample_rate, center_freq_hz = self._get_current_parameters()
@@ -299,6 +296,109 @@ class FFTController:
                     )
                 else:
                     # Modo normal: mostrar sin baseline
+                    self.main.spectrum_plot.update_plot(
+                        plot_spectrum, freq_axis_mhz,
+                        max_hold=plot_max, min_hold=plot_min
+                    )
+            
+            self._update_plot_range(center_freq_mhz, sample_rate_mhz)
+            
+            # Log periódico
+            self._log_frame_counter += 1
+            if self._log_frame_counter >= self._LOG_EVERY_N:
+                self._log_frame_counter = 0
+                self.logger.info(
+                    f"📊 X-axis: {freq_axis_mhz[0]:.1f} – {freq_axis_mhz[-1]:.1f} MHz "
+                    f"(SR={sample_rate_mhz:.1f} MHz)"
+                )
+            
+        except Exception as exc:
+            self.logger.error(f"Error updating graphics: {exc}")
+            import traceback
+            traceback.print_exc()'''
+  
+
+    def update_spectrum(self, fft_data: np.ndarray) -> None:
+        """Update all visualizations with new FFT frame."""
+        try:
+            sample_rate, center_freq_hz = self._get_current_parameters()
+            
+            fft_size = len(fft_data)
+            center_freq_mhz = center_freq_hz / 1e6
+            sample_rate_mhz = sample_rate / 1e6
+            
+            freq_axis_mhz = np.linspace(
+                center_freq_mhz - sample_rate_mhz / 2,
+                center_freq_mhz + sample_rate_mhz / 2,
+                fft_size,
+            )
+            
+            # Persistencia
+            p = float(getattr(self.main, 'persistence_factor', 0.0))
+            alpha = 1.0 - float(np.clip(p, 0.0, 0.99))
+            
+            fft_f32 = fft_data.astype(np.float32)
+            
+            if self._prev_spectrum is None or len(self._prev_spectrum) != fft_size:
+                displayed = fft_f32.copy()
+            else:
+                displayed = (alpha * fft_f32 + (1.0 - alpha) * self._prev_spectrum).astype(np.float32)
+            
+            self._prev_spectrum = displayed.copy()
+            
+            # Actualizar hold buffers
+            if getattr(self.main, 'reset_max_min_flag', False):
+                self.main.reset_max_min_flag = False
+                self.main.max_hold = fft_data.copy()
+                self.main.min_hold = fft_data.copy()
+            else:
+                self._update_hold_buffers(fft_data, fft_size)
+            
+            # ===== MODO TSCM CORREGIDO =====
+            baseline_to_plot = None
+            plot_spectrum = None
+            
+            if self._tscm_controller and self._tscm_controller.is_diff_mode_active():
+                # Obtener espectro filtrado Y la baseline
+                filtered_spectrum, baseline_to_plot, detections = self._tscm_controller.process_spectrum(
+                    displayed, freq_axis_mhz
+                )
+                
+                # El espectro que se muestra debe ser el filtrado (solo diferencias)
+                plot_spectrum = filtered_spectrum
+                
+                # NO mostrar max/min en modo TSCM
+                plot_max = None
+                plot_min = None
+                
+                # Log para verificar que la baseline existe
+                if baseline_to_plot is not None:
+                    self.logger.debug(f"📊 Baseline visible en gráfico (shape: {baseline_to_plot.shape})")
+            else:
+                # Modo normal
+                plot_spectrum = displayed
+                plot_max = self.main.max_hold if self.main.plot_max else None
+                plot_min = self.main.min_hold if self.main.plot_min else None
+                baseline_to_plot = None
+            
+            # ===== ACTUALIZAR WATERFALL =====
+            self._update_waterfall(
+                plot_spectrum, freq_axis_mhz, center_freq_mhz, sample_rate_mhz,
+                alpha=alpha,
+            )
+            
+            # ===== ACTUALIZAR SPECTRUM PLOT =====
+            if hasattr(self.main, 'spectrum_plot'):
+                if baseline_to_plot is not None:
+                    # Modo TSCM: mostrar espectro filtrado + baseline
+                    self.main.spectrum_plot.update_plot_with_baseline(
+                        plot_spectrum, freq_axis_mhz,
+                        max_hold=plot_max, min_hold=plot_min,
+                        baseline=baseline_to_plot
+                    )
+                    self.logger.debug(f"📊 Modo TSCM: baseline mostrada")
+                else:
+                    # Modo normal
                     self.main.spectrum_plot.update_plot(
                         plot_spectrum, freq_axis_mhz,
                         max_hold=plot_max, min_hold=plot_min

@@ -652,31 +652,27 @@ class SpectrumPlot(QObject):
         return 100.0
     
     def update_plot_with_baseline(self, spectrum, frequencies, max_hold=None, min_hold=None, baseline=None):
-        """
-        Actualiza el plot en modo TSCM (con baseline).
-        """
+        """Actualiza el plot mostrando el espectro y la línea de baseline."""
         try:
             if spectrum is not None and frequencies is not None:
-                self.current_spectrum = spectrum
-                self.current_frequencies = frequencies
-                
-                # Curva principal
+                # Curva principal (espectro filtrado - solo diferencias)
                 self.curve.setData(frequencies, spectrum)
                 
-                # En modo TSCM, NO mostrar max/min
+                # Ocultar max/min en modo TSCM
                 self.max_curve.setVisible(False)
                 self.min_curve.setVisible(False)
                 
-                # Mostrar baseline si existe
+                # Mostrar baseline como línea punteada
                 if baseline is not None and len(baseline) == len(frequencies):
                     if not hasattr(self, 'baseline_curve') or self.baseline_curve is None:
                         self.baseline_curve = self.plot_widget.plot(
                             [], 
-                            pen=pg.mkPen(color=(128, 128, 128, 180), width=1.5, style=Qt.DashLine),
+                            pen=pg.mkPen(color=(128, 128, 128, 200), width=1.5, style=Qt.DashLine),
                             name="Baseline"
                         )
                     self.baseline_curve.setData(frequencies, baseline)
                     self.baseline_curve.setVisible(True)
+                    self.logger.debug(f"📊 Baseline dibujada: min={baseline.min():.1f}, max={baseline.max():.1f}")
                 elif hasattr(self, 'baseline_curve') and self.baseline_curve is not None:
                     self.baseline_curve.setVisible(False)
                 

@@ -154,8 +154,6 @@ if __name__ == "__main__":
     main()
 
 
-
-
 ====================
 ARCHIVO: ./workers/iq_player.py
 ====================
@@ -4699,7 +4697,7 @@ class BladeRFDevice(SDRDevice):
             self._saturation_count = 0
 
 ====================
-ARCHIVO: ./widgets/tscm_widget_0.py
+ARCHIVO: ./widgets/tscm_widget_.py
 ====================
 
 # -*- coding: utf-8 -*-
@@ -4707,18 +4705,30 @@ ARCHIVO: ./widgets/tscm_widget_0.py
 """
 TSCM Widget - Herramienta de Análisis Diferencial
 =================================================
-Widget independiente para el modo TSCM (Technical Surveillance Counter-Measures).
+Widget profesional para el modo TSCM (Technical Surveillance Counter-Measures).
+Diseñado para la nueva interfaz con estilo consistente.
 """
 
 import logging
 from datetime import datetime
-from PyQt5.QtWidgets import QDockWidget
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtWidgets import QDockWidget, QApplication
+from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.uic import loadUi
 
 
 class TSCMWidget(QDockWidget):
-    """Widget para análisis TSCM / Modo Diferencias."""
+    """
+    Widget para análisis TSCM / Modo Diferencias.
+    
+    Señales:
+        tscm_capture_baseline: Solicita capturar baseline
+        tscm_mode_toggled: Activa/desactiva modo diferencias (bool)
+        tscm_threshold_changed: Cambia umbral (float dB)
+        tscm_dwell_changed: Cambia tiempo confirmación (int ms)
+        tscm_clear_baseline: Elimina baseline
+        tscm_export_log: Exporta log
+        tscm_sound_toggled: Activa/desactiva sonido (bool)
+    """
     
     # Señales
     tscm_capture_baseline = pyqtSignal()
@@ -4736,50 +4746,89 @@ class TSCMWidget(QDockWidget):
         # Cargar UI
         loadUi('ui/tscm_widget.ui', self)
         
-        # Estado
+        # Estado interno
         self.diff_mode_active = False
-        self.has_baseline = False
+        self._capturing_progress = False
+        
+        # Referencia al controller (se establece después)
+        self.main_controller = None
         
         # Configurar UI
-        self._setup_ui_state()
+        self._setup_ui()
         self._setup_connections()
         
-        self.logger.info("✅ TSCMWidget inicializado")
+        self.logger.info("✅ TSCMWidget inicializado (nueva interfaz)")
 
-    def _setup_ui_state(self):
-        """Configura el estado inicial de los widgets existentes."""
-        # Estado de baseline
-        if hasattr(self, 'label_baseline_status'):
-            self.label_baseline_status.setText("Sin Baseline Capturada")
-        if hasattr(self, 'label_baseline_status_short'):
-            self.label_baseline_status_short.setText("SIN BASELINE")
+    def set_main_controller(self, controller):
+        """Establece referencia al controlador principal."""
+        self.main_controller = controller
+        self.logger.info("🔗 TSCMWidget conectado al MainController")
+        
+        # Actualizar estado inicial preguntando al controller
+        if controller and hasattr(controller, 'tscm_ctrl'):
+            has_baseline = controller.tscm_ctrl.has_baseline()
+            self.logger.info(f"   Estado inicial baseline: {has_baseline}")
+            self.update_baseline_status(has_baseline)
+
+    def _setup_ui(self):
+        """Configura el estado inicial de la UI."""
+        self.logger.info("📐 Configurando UI...")
+        
+        # Estado baseline - usando nombres del nuevo UI
         if hasattr(self, 'label_baseline_icon'):
             self.label_baseline_icon.setText("⚪")
         
-        # Botón de modo
+        if hasattr(self, 'label_baseline_status'):
+            self.label_baseline_status.setText("SIN BASELINE")
+        
+        if hasattr(self, 'label_mode_indicator'):
+            self.label_mode_indicator.setText("INACTIVO")
+            self.label_mode_indicator.setStyleSheet("color: #888888;")
+        
+        # Botón de modo diferencias - INICIALMENTE DESHABILITADO
         if hasattr(self, 'pushButton_diff_mode'):
             self.pushButton_diff_mode.setChecked(False)
+            self.pushButton_diff_mode.setEnabled(False)  # Se habilita cuando hay baseline
+            self.pushButton_diff_mode.setText("▶ ACTIVAR MODO Δ")
         
-        # Parámetros
+        # Parámetros por defecto
         if hasattr(self, 'doubleSpinBox_threshold'):
             self.doubleSpinBox_threshold.setValue(4.0)
+        
         if hasattr(self, 'spinBox_dwell'):
             self.spinBox_dwell.setValue(200)
         
-        # Estadísticas (si existen)
+        # Estadísticas iniciales
         if hasattr(self, 'label_active_alerts'):
             self.label_active_alerts.setText("0")
+            self.label_active_alerts.setStyleSheet("font-size: 20pt; font-weight: bold; color: #00ff00;")
+        
+        if hasattr(self, 'label_last_alert'):
+            self.label_last_alert.setText("--:--:--")
+        
+        # Ocultar barra de progreso inicialmente
+        if hasattr(self, 'progressBar_capture'):
+            self.progressBar_capture.setVisible(False)
+        
+        # Exportar inicialmente deshabilitado
+        if hasattr(self, 'pushButton_export_log'):
+            self.pushButton_export_log.setEnabled(False)
+        
+        self.logger.info("✅ UI configurada")
 
     def _setup_connections(self):
-        """Conecta las señales internas."""
+        """Conecta las señales internas de la UI."""
         if hasattr(self, 'pushButton_capture_baseline'):
             self.pushButton_capture_baseline.clicked.connect(self._on_capture_baseline)
+            self.logger.info("   Conectado: pushButton_capture_baseline")
         
         if hasattr(self, 'pushButton_clear_baseline'):
             self.pushButton_clear_baseline.clicked.connect(self._on_clear_baseline)
+            self.logger.info("   Conectado: pushButton_clear_baseline")
         
         if hasattr(self, 'pushButton_diff_mode'):
             self.pushButton_diff_mode.toggled.connect(self._on_diff_mode_toggled)
+            self.logger.info("   Conectado: pushButton_diff_mode")
         
         if hasattr(self, 'doubleSpinBox_threshold'):
             self.doubleSpinBox_threshold.valueChanged.connect(self.tscm_threshold_changed)
@@ -4800,6 +4849,8 @@ class TSCMWidget(QDockWidget):
     def _on_capture_baseline(self):
         """Solicita capturar la baseline."""
         self.logger.info("📸 Captura de baseline solicitada")
+        if hasattr(self, 'pushButton_capture_baseline'):
+            self.pushButton_capture_baseline.setEnabled(False)
         self.tscm_capture_baseline.emit()
 
     def _on_clear_baseline(self):
@@ -4809,17 +4860,35 @@ class TSCMWidget(QDockWidget):
 
     def _on_diff_mode_toggled(self, checked):
         """Activa/desactiva el modo diferencias."""
-        self.logger.info(f"Modo Diferencias: {checked}")
+        self.logger.info(f"Modo Diferencias toggled: {checked}")
+        
+        # Verificar baseline consultando al controller
+        has_baseline = False
+        if self.main_controller and hasattr(self.main_controller, 'tscm_ctrl'):
+            has_baseline = self.main_controller.tscm_ctrl.has_baseline()
+            self.logger.info(f"   Controller has_baseline = {has_baseline}")
+        else:
+            # Fallback: usar variable local
+            has_baseline = getattr(self, '_has_baseline_cache', False)
+            self.logger.info(f"   Cache has_baseline = {has_baseline}")
+        
+        if checked and not has_baseline:
+            self.logger.warning("No se puede activar modo Δ sin baseline")
+            self.pushButton_diff_mode.blockSignals(True)
+            self.pushButton_diff_mode.setChecked(False)
+            self.pushButton_diff_mode.blockSignals(False)
+            return
+        
         self.diff_mode_active = checked
         
         if hasattr(self, 'pushButton_diff_mode'):
             if checked:
-                self.pushButton_diff_mode.setText("DETENER MODO DIFERENCIAS")
+                self.pushButton_diff_mode.setText("⏹ DETENER MODO Δ")
                 self.pushButton_diff_mode.setStyleSheet(
                     "background-color: #44aa44; color: white; font-weight: bold;"
                 )
             else:
-                self.pushButton_diff_mode.setText("ACTIVAR MODO DIFERENCIAS")
+                self.pushButton_diff_mode.setText("▶ ACTIVAR MODO Δ")
                 self.pushButton_diff_mode.setStyleSheet("")
         
         self.tscm_mode_toggled.emit(checked)
@@ -4829,64 +4898,143 @@ class TSCMWidget(QDockWidget):
     # ------------------------------------------------------------------------
 
     def update_baseline_status(self, has_baseline: bool):
-        """Actualiza el indicador de estado de baseline."""
-        self.has_baseline = has_baseline
+        """
+        Actualiza el indicador de estado de baseline.
+        Este método es llamado por TSCMController cuando cambia el estado.
+        """
+        self.logger.info(f"📊 update_baseline_status: has_baseline={has_baseline}")
         
-        if hasattr(self, 'label_baseline_status'):
-            if has_baseline:
-                self.label_baseline_status.setText("Baseline Capturada")
-                self.label_baseline_status.setStyleSheet(
-                    "font-weight: bold; background-color: #1a3a1a; color: #88ff88; padding: 4px;"
-                )
-            else:
-                self.label_baseline_status.setText("Sin Baseline Capturada")
-                self.label_baseline_status.setStyleSheet("")
+        # Cache para fallback
+        self._has_baseline_cache = has_baseline
         
-        if hasattr(self, 'label_baseline_status_short'):
-            if has_baseline:
-                self.label_baseline_status_short.setText("BASELINE OK")
-            else:
-                self.label_baseline_status_short.setText("SIN BASELINE")
-        
+        # Actualizar ícono
         if hasattr(self, 'label_baseline_icon'):
             if has_baseline:
                 self.label_baseline_icon.setText("🟢")
+                self.label_baseline_icon.setStyleSheet("color: #00ff00;")
             else:
                 self.label_baseline_icon.setText("⚪")
+                self.label_baseline_icon.setStyleSheet("color: #888888;")
+        
+        # Actualizar texto de estado
+        if hasattr(self, 'label_baseline_status'):
+            if has_baseline:
+                self.label_baseline_status.setText("BASELINE OK")
+                self.label_baseline_status.setStyleSheet(
+                    "font-weight: bold; color: #00ff00;"
+                )
+            else:
+                self.label_baseline_status.setText("SIN BASELINE")
+                self.label_baseline_status.setStyleSheet("color: #888888;")
+        
+        # Actualizar indicador de modo
+        if hasattr(self, 'label_mode_indicator'):
+            if has_baseline:
+                self.label_mode_indicator.setText("BASELINE OK")
+                self.label_mode_indicator.setStyleSheet("color: #00ff00;")
+            else:
+                self.label_mode_indicator.setText("INACTIVO")
+                self.label_mode_indicator.setStyleSheet("color: #888888;")
+        
+        # ===== HABILITAR/DESHABILITAR BOTÓN DE MODO Δ =====
+        if hasattr(self, 'pushButton_diff_mode'):
+            self.pushButton_diff_mode.setEnabled(has_baseline)
+            self.logger.info(f"   pushButton_diff_mode ENABLED = {has_baseline}")
+            # Forzar actualización visual
+            self.pushButton_diff_mode.repaint()
+            QApplication.processEvents()
+        
+        # Habilitar exportación si hay baseline
+        if hasattr(self, 'pushButton_export_log'):
+            self.pushButton_export_log.setEnabled(has_baseline)
+        
+        # Re-habilitar botón de captura
+        if hasattr(self, 'pushButton_capture_baseline'):
+            self.pushButton_capture_baseline.setEnabled(True)
 
     def set_diff_mode_active(self, active: bool):
-        """Sincroniza el estado del botón de modo."""
-        self.diff_mode_active = active
+        """Sincroniza el estado del botón de modo (desde controller)."""
         if hasattr(self, 'pushButton_diff_mode'):
             self.pushButton_diff_mode.setChecked(active)
+        self.diff_mode_active = active
 
-    def set_controls_enabled(self, enabled: bool):
-        """Habilita/deshabilita los controles."""
+    def set_capturing_progress(self, active: bool, progress: int = 0):
+        """Muestra/oculta barra de progreso durante captura."""
+        self._capturing_progress = active
+        
+        if hasattr(self, 'progressBar_capture'):
+            self.progressBar_capture.setVisible(active)
+            if active:
+                self.progressBar_capture.setValue(progress)
+                self.progressBar_capture.setFormat(f"Capturando... {progress}%")
+            else:
+                self.progressBar_capture.setValue(0)
+        
         if hasattr(self, 'pushButton_capture_baseline'):
-            self.pushButton_capture_baseline.setEnabled(enabled)
-        if hasattr(self, 'pushButton_clear_baseline'):
-            self.pushButton_clear_baseline.setEnabled(enabled)
-        if hasattr(self, 'pushButton_diff_mode'):
-            self.pushButton_diff_mode.setEnabled(enabled)
+            if active:
+                self.pushButton_capture_baseline.setEnabled(False)
+                self.pushButton_capture_baseline.setText("⏳ CAPTURANDO...")
+            else:
+                self.pushButton_capture_baseline.setEnabled(True)
+                self.pushButton_capture_baseline.setText("📸 CAPTURAR BASELINE")
 
     def update_stats(self, alert_count: int, frequencies: list = None):
         """Actualiza las estadísticas de alertas."""
+        
+        # Actualizar contador
         if hasattr(self, 'label_active_alerts'):
             self.label_active_alerts.setText(str(alert_count))
+            
             if alert_count > 0:
-                self.label_active_alerts.setStyleSheet("font-weight: bold; color: #ff4444;")
+                self.label_active_alerts.setStyleSheet(
+                    "font-size: 20pt; font-weight: bold; color: #ff4444; font-family: monospace;"
+                )
             else:
-                self.label_active_alerts.setStyleSheet("font-weight: bold; color: #00ff00;")
+                self.label_active_alerts.setStyleSheet(
+                    "font-size: 20pt; font-weight: bold; color: #00ff00; font-family: monospace;"
+                )
+        
+        # Actualizar hora
+        if alert_count > 0 and hasattr(self, 'label_last_alert'):
+            self.label_last_alert.setText(datetime.now().strftime("%H:%M:%S"))
+            self.label_last_alert.setStyleSheet(
+                "font-size: 11pt; font-weight: bold; color: #ff8844; font-family: monospace;"
+            )
+        
+        # ===== MOSTRAR FRECUENCIAS EN LOG =====
+        if frequencies and len(frequencies) > 0:
+            freq_str = ", ".join([f"{f:.4f}" for f in frequencies[:10]])
+            if len(frequencies) > 10:
+                freq_str += f" ... (+{len(frequencies)-10})"
+            self.logger.info(f"📡 ALERTA - Frecuencias: {freq_str} MHz")
 
     def reset_stats(self):
         """Reinicia las estadísticas a cero."""
         if hasattr(self, 'label_active_alerts'):
             self.label_active_alerts.setText("0")
-            self.label_active_alerts.setStyleSheet("font-weight: bold; color: #00ff00;")
-    
+            self.label_active_alerts.setStyleSheet(
+                "font-size: 20pt; font-weight: bold; color: #00ff00; font-family: monospace;"
+            )
+        
+        if hasattr(self, 'label_last_alert'):
+            self.label_last_alert.setText("--:--:--")
+            self.label_last_alert.setStyleSheet(
+                "font-size: 11pt; font-weight: bold; color: #aaaaaa; font-family: monospace;"
+            )
+
+    def set_controls_enabled(self, enabled: bool):
+        """Habilita/deshabilita los controles de baseline (no el modo Δ)."""
+        if hasattr(self, 'pushButton_capture_baseline'):
+            self.pushButton_capture_baseline.setEnabled(enabled)
+        
+        if hasattr(self, 'pushButton_clear_baseline'):
+            self.pushButton_clear_baseline.setEnabled(enabled)
+        
+        # Nota: pushButton_diff_mode NO se toca aquí, se controla por update_baseline_status
+
     def closeEvent(self, event):
         """Maneja el cierre del widget."""
-        if self.diff_mode_active:
+        if self.diff_mode_active and hasattr(self, 'pushButton_diff_mode'):
             self.pushButton_diff_mode.setChecked(False)
         event.accept()
 
@@ -7680,11 +7828,15 @@ class IQManagerWidget(QDockWidget):
         self.label_record_filename.setText(os.path.basename(filename))
         self._set_record_status(True)
         
-        # ===== NUEVO: Actualizar indicador de modo en barra superior =====
+        # Actualizar botón en barra superior - ROJO GRABANDO
+        if self.main_controller and hasattr(self.main_controller, 'update_record_button_state'):
+            self.main_controller.update_record_button_state(True)
+            self.logger.info("📻 Botón grabación: ROJO (grabando)")
+        
+        # Actualizar indicador de modo
         if self.main_controller and hasattr(self.main_controller, 'update_mode_indicator'):
             self.main_controller.update_mode_indicator('rec')
             self.logger.info("📻 Indicador de modo actualizado: REC")
-        # ================================================================
     
     def _on_recorder_stopped(self):
         """Handle recorder stopped signal."""
@@ -7693,9 +7845,14 @@ class IQManagerWidget(QDockWidget):
         self.ui_update_timer.stop()
         self._set_record_status(False)
         
-        # ===== NUEVO: Restaurar indicador de modo =====
+        # Actualizar botón en barra superior - ROJO OSCURO (listo para grabar)
+        if self.main_controller and hasattr(self.main_controller, 'update_record_button_state'):
+            self.main_controller.update_record_button_state(False)
+            self.logger.info("📻 Botón grabación: ROJO OSCURO (detenido)")
+        
+        # Restaurar indicador de modo
         if self.main_controller and hasattr(self.main_controller, 'update_mode_indicator'):
-            self.main_controller.update_mode_indicator()  # Auto-detectar
+            self.main_controller.update_mode_indicator()
             self.logger.info("📻 Indicador de modo restaurado")
     
     def _update_recording_ui(self, stats: dict) -> None:
@@ -8120,29 +8277,23 @@ ARCHIVO: ./widgets/tscm_widget.py
 """
 TSCM Widget - Herramienta de Análisis Diferencial
 =================================================
-Widget independiente para el modo TSCM (Technical Surveillance Counter-Measures).
-Permite capturar una baseline de RF y detectar anomalías en tiempo real.
+Widget profesional para el modo TSCM con gráfico de barras.
 """
 
 import logging
+import csv
+import os
 from datetime import datetime
-from PyQt5.QtWidgets import QDockWidget
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtWidgets import (QDockWidget, QFileDialog, QMessageBox, 
+                             QVBoxLayout, QWidget)
+from PyQt5.QtCore import pyqtSignal, Qt, QTimer
+from PyQt5.QtGui import QColor
 from PyQt5.uic import loadUi
 
 
 class TSCMWidget(QDockWidget):
     """
     Widget para análisis TSCM / Modo Diferencias.
-    
-    Señales emitidas:
-        tscm_capture_baseline: Solicita capturar la baseline actual
-        tscm_mode_toggled: Activa/desactiva el modo diferencias (bool)
-        tscm_threshold_changed: Cambia el umbral de detección (float dB)
-        tscm_dwell_changed: Cambia el tiempo de confirmación (int ms)
-        tscm_clear_baseline: Elimina la baseline capturada
-        tscm_export_log: Solicita exportar el log de alertas
-        tscm_sound_toggled: Activa/desactiva sonido de alerta (bool)
     """
     
     # Señales
@@ -8161,147 +8312,1069 @@ class TSCMWidget(QDockWidget):
         # Cargar UI
         loadUi('ui/tscm_widget.ui', self)
         
-        # Estado
+        # Estado interno
         self.diff_mode_active = False
-        self.has_baseline = False
+        self._capturing_progress = False
+        self._current_detections = []
+        self._detection_history = []  # Para exportación
+        
+        # Referencia al controller
+        self.main_controller = None
+        
+        # Sonido
+        self._sound_enabled = False
+        self._last_alert_time = 0
+        self._alert_cooldown = 2000
         
         # Configurar UI
         self._setup_ui()
         self._setup_connections()
+        self._setup_chart()  # Crear gráfico en lugar de tabla
         
-        self.logger.info("✅ TSCMWidget inicializado")
+        self.logger.info("✅ TSCMWidget inicializado (con gráfico de barras)")
+
+    def set_main_controller(self, controller):
+        self.main_controller = controller
+        self.logger.info("🔗 TSCMWidget conectado al MainController")
+        
+        if controller and hasattr(controller, 'tscm_ctrl'):
+            has_baseline = controller.tscm_ctrl.has_baseline()
+            self.update_baseline_status(has_baseline)
 
     def _setup_ui(self):
         """Configura el estado inicial de la UI."""
-        self.label_baseline_status.setText("⚪ Sin Baseline Capturada")
-        self.pushButton_diff_mode.setChecked(False)
-        self.doubleSpinBox_threshold.setValue(4.0)
-        self.spinBox_dwell.setValue(200)
+        # Estado baseline
+        if hasattr(self, 'label_baseline_icon'):
+            self.label_baseline_icon.setText("⚪")
         
-        # Estadísticas iniciales
-        self.label_active_alerts.setText("0")
-        self.label_active_alerts.setStyleSheet("font-weight: bold; color: #00ff00;")
-        self.label_last_detection.setText("--:--:--")
-        self.label_frequencies.setText("-")
+        if hasattr(self, 'label_baseline_status'):
+            self.label_baseline_status.setText("SIN BASELINE")
         
-        # Deshabilitar exportación hasta que haya datos
-        self.pushButton_export_log.setEnabled(False)
+        if hasattr(self, 'label_mode_indicator'):
+            self.label_mode_indicator.setText("INACTIVO")
+            self.label_mode_indicator.setStyleSheet("color: #888888;")
+        
+        # Botón de modo diferencias
+        if hasattr(self, 'pushButton_diff_mode'):
+            self.pushButton_diff_mode.setChecked(False)
+            self.pushButton_diff_mode.setEnabled(False)
+            self.pushButton_diff_mode.setText("▶ ACTIVAR MODO Δ")
+        
+        # Parámetros
+        if hasattr(self, 'doubleSpinBox_threshold'):
+            self.doubleSpinBox_threshold.setValue(4.0)
+        
+        if hasattr(self, 'spinBox_dwell'):
+            self.spinBox_dwell.setValue(200)
+        
+        # Estadísticas
+        if hasattr(self, 'label_active_alerts'):
+            self.label_active_alerts.setText("0")
+            self.label_active_alerts.setStyleSheet("font-size: 20pt; font-weight: bold; color: #00ff00;")
+        
+        if hasattr(self, 'label_last_alert'):
+            self.label_last_alert.setText("--:--:--")
+        
+        # Barra de progreso
+        if hasattr(self, 'progressBar_capture'):
+            self.progressBar_capture.setVisible(False)
+        
+        # Botón exportar
+        if hasattr(self, 'pushButton_export_log'):
+            self.pushButton_export_log.setEnabled(False)
+
+    def _setup_chart(self):
+        """Crea el widget de gráfico TSCM."""
+        from widgets.tscm_chart import TSCMChartWidget
+        
+        self.tscm_chart = TSCMChartWidget(self)
+        self.tscm_chart.frequency_selected.connect(self._on_chart_frequency_selected)
+        self.tscm_chart.cleared.connect(self._on_history_cleared)
+        
+        # Añadir al layout principal
+        if hasattr(self, 'verticalLayout_main'):
+            self.verticalLayout_main.addWidget(self.tscm_chart)
+        
+        self.logger.info("✅ Gráfico TSCM añadido")
 
     def _setup_connections(self):
-        """Conecta las señales internas de la UI."""
-        self.pushButton_capture_baseline.clicked.connect(self._on_capture_baseline)
-        self.pushButton_clear_baseline.clicked.connect(self._on_clear_baseline)
-        self.pushButton_diff_mode.toggled.connect(self._on_diff_mode_toggled)
-        self.doubleSpinBox_threshold.valueChanged.connect(self.tscm_threshold_changed)
-        self.spinBox_dwell.valueChanged.connect(self.tscm_dwell_changed)
-        self.pushButton_export_log.clicked.connect(self.tscm_export_log)
-        self.checkBox_sound_alert.toggled.connect(self.tscm_sound_toggled)
+        """Conecta las señales internas."""
+        if hasattr(self, 'pushButton_capture_baseline'):
+            self.pushButton_capture_baseline.clicked.connect(self._on_capture_baseline)
+        
+        if hasattr(self, 'pushButton_clear_baseline'):
+            self.pushButton_clear_baseline.clicked.connect(self._on_clear_baseline)
+        
+        if hasattr(self, 'pushButton_diff_mode'):
+            self.pushButton_diff_mode.toggled.connect(self._on_diff_mode_toggled)
+        
+        if hasattr(self, 'doubleSpinBox_threshold'):
+            self.doubleSpinBox_threshold.valueChanged.connect(self.tscm_threshold_changed)
+        
+        if hasattr(self, 'spinBox_dwell'):
+            self.spinBox_dwell.valueChanged.connect(self.tscm_dwell_changed)
+        
+        if hasattr(self, 'pushButton_export_log'):
+            #self.pushButton_export_log.clicked.connect(self._on_export_clicked)
+            self.pushButton_export_log.clicked.connect(self.export_historical_log)  # Cambiar a nuevo método
+        
+        if hasattr(self, 'checkBox_sound_alert'):
+            self.checkBox_sound_alert.toggled.connect(self._on_sound_toggled)
 
     # ------------------------------------------------------------------------
     # SLOTS INTERNOS
     # ------------------------------------------------------------------------
 
     def _on_capture_baseline(self):
-        """Solicita capturar la baseline."""
-        self.logger.info("📸 Solicitando captura de baseline...")
-        self.label_baseline_status.setText("⏳ Capturando...")
+        self.logger.info("📸 Captura de baseline solicitada")
+        if hasattr(self, 'pushButton_capture_baseline'):
+            self.pushButton_capture_baseline.setEnabled(False)
         self.tscm_capture_baseline.emit()
 
     def _on_clear_baseline(self):
-        """Solicita eliminar la baseline."""
-        self.logger.info("🗑️ Solicitando limpiar baseline...")
+        self.logger.info("🗑️ Limpiar baseline solicitado")
         self.tscm_clear_baseline.emit()
 
     def _on_diff_mode_toggled(self, checked):
-        """Activa/desactiva el modo diferencias."""
-        self.logger.info(f"🔘 Modo Diferencias toggled: {checked}")
+        self.logger.info(f"Modo Diferencias toggled: {checked}")
         
-        if checked:
-            self.pushButton_diff_mode.setText("🟢 DETENER MODO Δ")
-            self.pushButton_diff_mode.setStyleSheet(
-                "background-color: #44aa44; color: white; font-weight: bold;"
-            )
-        else:
-            self.pushButton_diff_mode.setText("🔴 ACTIVAR MODO DIFERENCIAS")
-            self.pushButton_diff_mode.setStyleSheet("")
+        has_baseline = False
+        if self.main_controller and hasattr(self.main_controller, 'tscm_ctrl'):
+            has_baseline = self.main_controller.tscm_ctrl.has_baseline()
+        
+        if checked and not has_baseline:
+            self.logger.warning("No se puede activar modo Δ sin baseline")
+            self.pushButton_diff_mode.blockSignals(True)
+            self.pushButton_diff_mode.setChecked(False)
+            self.pushButton_diff_mode.blockSignals(False)
+            return
         
         self.diff_mode_active = checked
+        
+        if hasattr(self, 'pushButton_diff_mode'):
+            if checked:
+                self.pushButton_diff_mode.setText("⏹ DETENER MODO Δ")
+                self.pushButton_diff_mode.setStyleSheet(
+                    "background-color: #44aa44; color: white; font-weight: bold;"
+                )
+            else:
+                self.pushButton_diff_mode.setText("▶ ACTIVAR MODO Δ")
+                self.pushButton_diff_mode.setStyleSheet("")
+        
         self.tscm_mode_toggled.emit(checked)
 
+    def _on_export_clicked(self):
+        self.tscm_export_log.emit()
+        self._export_to_csv()
+
+    def _on_sound_toggled(self, checked):
+        self._sound_enabled = checked
+        self.logger.info(f"🔊 Sonido alerta: {'activado' if checked else 'desactivado'}")
+        self.tscm_sound_toggled.emit(checked)
+
+    def _on_chart_frequency_selected(self, freq_mhz):
+        """Sintoniza la frecuencia seleccionada en el gráfico."""
+        if self.main_controller:
+            self.main_controller.on_frequency_changed_from_plot(freq_mhz)
+            self.main_controller.statusbar.showMessage(
+                f"🎯 Sintonizando {freq_mhz:.4f} MHz", 2000
+            )
+
+    def _on_history_cleared(self):
+        """Maneja limpieza de historial."""
+        self.logger.info("🗑️ Historial limpiado desde el gráfico")
+
     # ------------------------------------------------------------------------
-    # MÉTODOS PÚBLICOS (llamados desde TSCMController)
+    # MÉTODOS PÚBLICOS
     # ------------------------------------------------------------------------
 
     def update_baseline_status(self, has_baseline: bool):
-        """Actualiza el indicador de estado de baseline."""
-        self.has_baseline = has_baseline
+        self.logger.info(f"📊 update_baseline_status: has_baseline={has_baseline}")
         
-        if has_baseline:
-            self.label_baseline_status.setText("🟢 Baseline Capturada")
-            self.label_baseline_status.setStyleSheet(
-                "font-weight: bold; padding: 8px; background-color: #1a3a1a; "
-                "border: 1px solid #00aa00; border-radius: 4px; color: #88ff88;"
-            )
-            # Habilitar exportación si hay baseline
-            self.pushButton_export_log.setEnabled(True)
-        else:
-            self.label_baseline_status.setText("⚪ Sin Baseline Capturada")
-            self.label_baseline_status.setStyleSheet(
-                "font-weight: bold; padding: 8px; background-color: #2a2a2a; border-radius: 4px;"
-            )
+        if hasattr(self, 'label_baseline_icon'):
+            if has_baseline:
+                self.label_baseline_icon.setText("🟢")
+                self.label_baseline_icon.setStyleSheet("color: #00ff00;")
+            else:
+                self.label_baseline_icon.setText("⚪")
+                self.label_baseline_icon.setStyleSheet("color: #888888;")
+        
+        if hasattr(self, 'label_baseline_status'):
+            if has_baseline:
+                self.label_baseline_status.setText("BASELINE OK")
+                self.label_baseline_status.setStyleSheet("font-weight: bold; color: #00ff00;")
+            else:
+                self.label_baseline_status.setText("SIN BASELINE")
+                self.label_baseline_status.setStyleSheet("color: #888888;")
+        
+        if hasattr(self, 'label_mode_indicator'):
+            if has_baseline:
+                self.label_mode_indicator.setText("BASELINE OK")
+                self.label_mode_indicator.setStyleSheet("color: #00ff00;")
+            else:
+                self.label_mode_indicator.setText("INACTIVO")
+                self.label_mode_indicator.setStyleSheet("color: #888888;")
+        
+        if hasattr(self, 'pushButton_diff_mode'):
+            self.pushButton_diff_mode.setEnabled(has_baseline)
+        
+        if hasattr(self, 'pushButton_export_log'):
+            self.pushButton_export_log.setEnabled(has_baseline)
+        
+        if hasattr(self, 'pushButton_capture_baseline'):
+            self.pushButton_capture_baseline.setEnabled(True)
 
     def set_diff_mode_active(self, active: bool):
-        """Sincroniza el estado del botón de modo."""
-        self.pushButton_diff_mode.setChecked(active)
+        if hasattr(self, 'pushButton_diff_mode'):
+            self.pushButton_diff_mode.setChecked(active)
         self.diff_mode_active = active
 
-    def update_stats(self, alert_count: int, frequencies: list = None):
+    def set_capturing_progress(self, active: bool, progress: int = 0):
+        self._capturing_progress = active
+        
+        if hasattr(self, 'progressBar_capture'):
+            self.progressBar_capture.setVisible(active)
+            if active:
+                self.progressBar_capture.setValue(progress)
+                self.progressBar_capture.setFormat(f"Capturando... {progress}%")
+            else:
+                self.progressBar_capture.setValue(0)
+        
+        if hasattr(self, 'pushButton_capture_baseline'):
+            if active:
+                self.pushButton_capture_baseline.setEnabled(False)
+                self.pushButton_capture_baseline.setText("⏳ CAPTURANDO...")
+            else:
+                self.pushButton_capture_baseline.setEnabled(True)
+                self.pushButton_capture_baseline.setText("📸 CAPTURAR BASELINE")
+
+    def update_stats(self, alert_count: int, detections: list = None):
         """
-        Actualiza las estadísticas de alertas.
+        Actualiza estadísticas y gráfico.
         
         Args:
-            alert_count: Número de bins con alerta activa
-            frequencies: Lista de frecuencias con alerta (opcional)
+            alert_count: Número total de bins en alerta
+            detections: Lista de detecciones del controller
         """
-        self.label_active_alerts.setText(str(alert_count))
+        # Actualizar contador
+        if hasattr(self, 'label_active_alerts'):
+            self.label_active_alerts.setText(str(alert_count))
+            if alert_count > 0:
+                self.label_active_alerts.setStyleSheet(
+                    "font-size: 20pt; font-weight: bold; color: #ff4444;"
+                )
+            else:
+                self.label_active_alerts.setStyleSheet(
+                    "font-size: 20pt; font-weight: bold; color: #00ff00;"
+                )
         
-        if alert_count > 0:
-            self.label_active_alerts.setStyleSheet("font-weight: bold; color: #ff4444;")
-            self.label_last_detection.setText(datetime.now().strftime("%H:%M:%S"))
+        # Actualizar hora última alerta
+        if alert_count > 0 and hasattr(self, 'label_last_alert'):
+            self.label_last_alert.setText(datetime.now().strftime("%H:%M:%S"))
+            self.label_last_alert.setStyleSheet(
+                "font-size: 11pt; font-weight: bold; color: #ff8844;"
+            )
+        
+        # Guardar para exportación
+        if detections:
+            self._current_detections = detections
+            for det in detections:
+                self._detection_history.append({
+                    'timestamp': datetime.now().isoformat(),
+                    'freq': det.get('freq', 0),
+                    'power': det.get('power', -100),
+                    'bandwidth': det.get('bandwidth', 0),
+                    'snr': det.get('snr', 0),
+                    'type': det.get('type', 'Desconocido')
+                })
+        
+        # Actualizar gráfico
+        if hasattr(self, 'tscm_chart') and detections:
+            # Obtener rango de frecuencia actual
+            freq_min = 0
+            freq_max = 0
+            center_freq = 0
             
-            if frequencies and len(frequencies) > 0:
-                # Mostrar hasta 3 frecuencias
-                freq_str = ", ".join([f"{f:.3f}" for f in frequencies[:3]])
-                if len(frequencies) > 3:
-                    freq_str += f" (+{len(frequencies)-3})"
-                self.label_frequencies.setText(freq_str + " MHz")
-        else:
-            self.label_active_alerts.setStyleSheet("font-weight: bold; color: #00ff00;")
-            # No actualizamos last_detection ni frequencies cuando no hay alertas
+            if self.main_controller and self.main_controller.bladerf:
+                center_freq = self.main_controller.bladerf.frequency / 1e6
+                sample_rate = self.main_controller.bladerf.sample_rate / 1e6
+                freq_min = center_freq - sample_rate / 2
+                freq_max = center_freq + sample_rate / 2
+            else:
+                freq_min = 2382
+                freq_max = 2438
+            
+            self.tscm_chart.update_detections(detections, freq_min, freq_max)
+        
+        # Alerta sonora
+        if self._sound_enabled and detections and len(detections) > 0:
+            self._play_alert_sound(detections)
 
     def reset_stats(self):
-        """Reinicia las estadísticas a cero."""
-        self.label_active_alerts.setText("0")
-        self.label_active_alerts.setStyleSheet("font-weight: bold; color: #00ff00;")
-        self.label_last_detection.setText("--:--:--")
-        self.label_frequencies.setText("-")
+        """Reinicia las estadísticas."""
+        if hasattr(self, 'label_active_alerts'):
+            self.label_active_alerts.setText("0")
+            self.label_active_alerts.setStyleSheet(
+                "font-size: 20pt; font-weight: bold; color: #00ff00;"
+            )
+        
+        if hasattr(self, 'label_last_alert'):
+            self.label_last_alert.setText("--:--:--")
+        
+        # Limpiar histórico de detecciones
+        self._detection_history = []
+        self._current_detections = []
+        
+        if hasattr(self, 'tscm_chart'):
+            self.tscm_chart.clear_historical()
 
     def set_controls_enabled(self, enabled: bool):
-        """Habilita/deshabilita los controles de baseline y modo."""
-        self.pushButton_capture_baseline.setEnabled(enabled)
-        self.pushButton_clear_baseline.setEnabled(enabled)
-        self.pushButton_diff_mode.setEnabled(enabled)
+        if hasattr(self, 'pushButton_capture_baseline'):
+            self.pushButton_capture_baseline.setEnabled(enabled)
+        if hasattr(self, 'pushButton_clear_baseline'):
+            self.pushButton_clear_baseline.setEnabled(enabled)
 
-    # ------------------------------------------------------------------------
-    # OVERRIDES
-    # ------------------------------------------------------------------------
+    def _export_to_csv(self):
+        """Exporta el historial de detecciones a CSV."""
+        if not self._detection_history:
+            QMessageBox.information(self, "Exportar", "No hay datos para exportar")
+            return
+        
+        try:
+            os.makedirs("tscm_logs", exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"tscm_logs/tscm_detecciones_{timestamp}.csv"
+            
+            with open(filename, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'Timestamp', 'Frecuencia (MHz)', 'Potencia (dB)', 
+                    'Ancho Banda (MHz)', 'SNR (dB)', 'Tipo'
+                ])
+                
+                for det in self._detection_history:
+                    writer.writerow([
+                        det['timestamp'],
+                        f"{det['freq']:.4f}",
+                        f"{det['power']:.1f}",
+                        f"{det['bandwidth']:.2f}",
+                        f"{det['snr']:.1f}",
+                        det['type']
+                    ])
+            
+            QMessageBox.information(
+                self, "Exportar", 
+                f"✅ {len(self._detection_history)} detecciones exportadas a:\n{filename}"
+            )
+            self.logger.info(f"📤 Exportadas {len(self._detection_history)} detecciones a {filename}")
+            
+        except Exception as e:
+            self.logger.error(f"Error exportando: {e}")
+            QMessageBox.warning(self, "Error", f"Error al exportar:\n{e}")
+
+    def export_historical_log(self):
+        """Exporta el log completo de señales activas a CSV."""
+        if not hasattr(self, 'tscm_chart'):
+            QMessageBox.warning(self, "Exportar", "Gráfico no disponible")
+            return
+        
+        historical_data = self.tscm_chart.get_historical_data()
+        
+        if not historical_data and not self._detection_history:
+            QMessageBox.information(self, "Exportar", "No hay datos para exportar")
+            return
+        
+        try:
+            os.makedirs("tscm_logs", exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Exportar histórico de frecuencias
+            filename_hist = f"tscm_logs/tscm_historial_{timestamp}.csv"
+            with open(filename_hist, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Frecuencia (MHz)', 'Detecciones', 'Intensidad'])
+                
+                max_count = max([d['detection_count'] for d in historical_data]) if historical_data else 1
+                for item in historical_data:
+                    intensity = int(100 * item['detection_count'] / max_count)
+                    writer.writerow([
+                        f"{item['frequency_mhz']:.4f}",
+                        item['detection_count'],
+                        f"{intensity}%"
+                    ])
+            
+            # Exportar detecciones por tiempo
+            filename_det = f"tscm_logs/tscm_detecciones_{timestamp}.csv"
+            with open(filename_det, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'Timestamp', 'Frecuencia (MHz)', 'Potencia (dB)', 
+                    'Ancho Banda (MHz)', 'SNR (dB)', 'Tipo'
+                ])
+                
+                for det in self._detection_history:
+                    writer.writerow([
+                        det['timestamp'],
+                        f"{det['freq']:.4f}",
+                        f"{det['power']:.1f}",
+                        f"{det['bandwidth']:.2f}",
+                        f"{det['snr']:.1f}",
+                        det['type']
+                    ])
+            
+            QMessageBox.information(
+                self, "Exportar", 
+                f"✅ Datos exportados:\n"
+                f"📊 Historial: {filename_hist}\n"
+                f"📋 Detecciones: {filename_det}\n"
+                f"Total: {len(historical_data)} frecuencias, {len(self._detection_history)} eventos"
+            )
+            self.logger.info(f"📤 Exportados {len(historical_data)} frecuencias y {len(self._detection_history)} eventos")
+            
+        except Exception as e:
+            self.logger.error(f"Error exportando: {e}")
+            QMessageBox.warning(self, "Error", f"Error al exportar:\n{e}")
+
+    def _play_alert_sound(self, detections):
+        """Reproduce sonido de alerta."""
+        import time
+        now = time.time() * 1000
+        if now - self._last_alert_time < self._alert_cooldown:
+            return
+        
+        max_power = max([d.get('power', -100) for d in detections])
+        
+        if max_power > -40:
+            self._beep()
+        elif max_power > -60:
+            self._beep()
+        else:
+            return
+        
+        self._last_alert_time = now
+
+    def _beep(self):
+        """Reproduce un beep."""
+        try:
+            from PyQt5.QtWidgets import QApplication
+            QApplication.beep()
+        except:
+            pass
 
     def closeEvent(self, event):
-        """Maneja el cierre del widget."""
-        # Si el modo diferencias está activo, desactivarlo antes de cerrar
-        if self.diff_mode_active:
+        if self.diff_mode_active and hasattr(self, 'pushButton_diff_mode'):
             self.pushButton_diff_mode.setChecked(False)
         event.accept()
+
+====================
+ARCHIVO: ./widgets/tscm_chart.py
+====================
+
+# -*- coding: utf-8 -*-
+
+"""
+TSCM Chart Widget - Visualización de actividad de señales
+==========================================================
+Dos gráficas con el mismo rango espectral:
+1. Acumulativa (historial de detecciones)
+2. Tiempo real (señales activas actuales)
+"""
+
+import logging
+import numpy as np
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton
+from PyQt5.QtCore import pyqtSignal, Qt, QTimer
+from PyQt5.QtGui import QColor
+import pyqtgraph as pg
+
+
+class TSCMChartWidget(QWidget):
+    """
+    Widget con dos gráficas TSCM que comparten el mismo rango espectral.
+    
+    Señales:
+        frequency_selected: Emitida al hacer clic en una barra (frecuencia en MHz)
+        range_changed: Emitida cuando cambia el rango (min_mhz, max_mhz)
+        cleared: Emitida cuando se limpia el historial
+    """
+    
+    # Señales
+    frequency_selected = pyqtSignal(float)
+    range_changed = pyqtSignal(float, float)
+    cleared = pyqtSignal()  # <-- SEÑAL AÑADIDA
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.logger = logging.getLogger(__name__)
+        
+        # Datos
+        self.historical_counts = {}      # frecuencia -> contador
+        self.current_detections = []     # detecciones activas
+        self.freq_min = 0
+        self.freq_max = 0
+        self._updating_range = False
+        
+        # Configurar UI
+        self.setup_ui()
+        
+        # Timer para decaer histórico
+        self.decay_timer = QTimer()
+        self.decay_timer.timeout.connect(self._decay_historical)
+        self.decay_timer.start(10000)
+        
+        self.logger.info("✅ TSCMChartWidget inicializado")
+    
+    def setup_ui(self):
+        """Configura la interfaz."""
+        layout = QVBoxLayout(self)
+        layout.setSpacing(8)
+        layout.setContentsMargins(4, 4, 4, 4)
+        
+        # ===== GRÁFICA 1: ACTIVIDAD ACUMULADA =====
+        self.historical_plot = pg.PlotWidget()
+        self.historical_plot.setLabel('bottom', 'Frecuencia', units='MHz')
+        self.historical_plot.setLabel('left', 'Detecciones', units='')
+        self.historical_plot.setTitle('<b>📈 ACTIVIDAD ACUMULADA</b>')
+        self.historical_plot.setMinimumHeight(180)
+        self.historical_plot.setBackground(self._get_bg_color())
+        self.historical_plot.showGrid(x=True, y=True, alpha=0.3)
+        
+        # Barras para histórico
+        self.historical_bars = pg.BarGraphItem(
+            x=[], height=[], width=0.8,
+            brush=QColor(50, 150, 255, 180),
+            pen=pg.mkPen(QColor(100, 180, 255))
+        )
+        self.historical_plot.addItem(self.historical_bars)
+        
+        # Conectar evento de rango
+        self.historical_plot.sigRangeChanged.connect(self._on_range_changed)
+        
+        layout.addWidget(self.historical_plot)
+        
+        # Botones
+        btn_layout = QHBoxLayout()
+        self.clear_btn = QPushButton("🗑️ LIMPIAR HISTORIAL")
+        self.clear_btn.setMaximumWidth(150)
+        self.clear_btn.clicked.connect(self.clear_historical)
+        btn_layout.addWidget(self.clear_btn)
+        btn_layout.addStretch()
+        
+        # Label de rango
+        self.range_label = QLabel("")
+        self.range_label.setStyleSheet("color: #888888; font-size: 8pt;")
+        btn_layout.addWidget(self.range_label)
+        
+        layout.addLayout(btn_layout)
+        
+        # Separador
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(line)
+        
+        # ===== GRÁFICA 2: TIEMPO REAL (mismo rango) =====
+        self.real_plot = pg.PlotWidget()
+        self.real_plot.setLabel('bottom', 'Frecuencia', units='MHz')
+        self.real_plot.setLabel('left', 'Potencia', units='dB')
+        self.real_plot.setTitle('<b>⚡ ACTIVIDAD EN TIEMPO REAL</b>')
+        self.real_plot.setMinimumHeight(200)
+        self.real_plot.setBackground(self._get_bg_color())
+        self.real_plot.showGrid(x=True, y=True, alpha=0.3)
+        self.real_plot.setYRange(-100, -20)
+        
+        # Barras para tiempo real
+        self.real_bars = pg.BarGraphItem(
+            x=[], height=[], width=0.6,
+            pen=pg.mkPen(QColor(255, 255, 255, 100))
+        )
+        self.real_plot.addItem(self.real_bars)
+        
+        # Conectar evento de rango (sincronizar con la otra gráfica)
+        self.real_plot.sigRangeChanged.connect(self._on_range_changed)
+        
+        layout.addWidget(self.real_plot)
+        
+        # ===== PANEL DE INFORMACIÓN =====
+        self.info_frame = QFrame()
+        self.info_frame.setFrameShape(QFrame.StyledPanel)
+        self.info_frame.setStyleSheet("""
+            QFrame {
+                background-color: #2a2a2a;
+                border: 1px solid #4a4a4a;
+                border-radius: 4px;
+            }
+        """)
+        self.info_frame.setMinimumHeight(50)
+        
+        info_layout = QHBoxLayout(self.info_frame)
+        info_layout.setContentsMargins(8, 4, 8, 4)
+        
+        self.selected_info = QLabel("📡 Haz clic en una barra para sintonizar")
+        self.selected_info.setStyleSheet("color: #aaaaaa; font-size: 9pt;")
+        info_layout.addWidget(self.selected_info)
+        
+        layout.addWidget(self.info_frame)
+        
+        # Conectar eventos de clic
+        self.real_plot.scene().sigMouseClicked.connect(self._on_plot_click)
+        self.historical_plot.scene().sigMouseClicked.connect(self._on_plot_click)
+    
+    def _get_bg_color(self):
+        return QColor(25, 25, 35)
+    
+    def set_frequency_range(self, freq_min_mhz, freq_max_mhz):
+        """Establece el rango de frecuencia para AMBAS gráficas."""
+        if self._updating_range:
+            return
+        
+        self._updating_range = True
+        self.freq_min = freq_min_mhz
+        self.freq_max = freq_max_mhz
+        
+        # Actualizar ambas gráficas
+        self.historical_plot.setXRange(freq_min_mhz, freq_max_mhz, padding=0)
+        self.real_plot.setXRange(freq_min_mhz, freq_max_mhz, padding=0)
+        
+        # Actualizar label
+        self.range_label.setText(f"📡 Rango: {freq_min_mhz:.1f} - {freq_max_mhz:.1f} MHz")
+        
+        self._updating_range = False
+        self.logger.debug(f"Rango actualizado: {freq_min_mhz:.1f} - {freq_max_mhz:.1f} MHz")
+    
+    def _on_range_changed(self, plot, view_range):
+        """Sincroniza el rango entre ambas gráficas cuando el usuario hace zoom/pan."""
+        if self._updating_range:
+            return
+        
+        self._updating_range = True
+        
+        # Obtener nuevo rango
+        x_range = view_range[0]
+        new_min = x_range[0]
+        new_max = x_range[1]
+        
+        # Actualizar la otra gráfica
+        if plot == self.historical_plot:
+            self.real_plot.setXRange(new_min, new_max, padding=0)
+        else:
+            self.historical_plot.setXRange(new_min, new_max, padding=0)
+        
+        self.freq_min = new_min
+        self.freq_max = new_max
+        self.range_label.setText(f"📡 Rango: {new_min:.1f} - {new_max:.1f} MHz")
+        
+        # Emitir señal
+        self.range_changed.emit(new_min, new_max)
+        
+        self._updating_range = False
+    
+    def update_detections(self, detections, freq_min_mhz, freq_max_mhz):
+        """Actualiza las gráficas con nuevas detecciones."""
+        if not detections:
+            return
+        
+        self.current_detections = detections
+        
+        # Actualizar rango si es necesario
+        if freq_min_mhz != self.freq_min or freq_max_mhz != self.freq_max:
+            self.set_frequency_range(freq_min_mhz, freq_max_mhz)
+        
+        # Actualizar histórico (solo detecciones dentro del rango)
+        for det in detections:
+            freq = det.get('freq', 0)
+            if freq > 0 and self.freq_min <= freq <= self.freq_max:
+                self.historical_counts[freq] = self.historical_counts.get(freq, 0) + 1
+        
+        # Actualizar gráficas
+        self._update_historical_plot()
+        self._update_real_plot()
+    
+    def _update_historical_plot(self):
+        """Actualiza gráfica acumulativa SOLO en el rango visible."""
+        if not self.historical_counts:
+            self.historical_bars.setData(x=[], height=[])
+            return
+        
+        # Filtrar frecuencias dentro del rango visible
+        freqs = []
+        counts = []
+        colors = []
+        
+        max_count = max(self.historical_counts.values()) if self.historical_counts else 1
+        
+        for freq, count in sorted(self.historical_counts.items()):
+            if self.freq_min <= freq <= self.freq_max:
+                freqs.append(freq)
+                counts.append(count)
+                # Color según intensidad
+                intensity = min(255, int(100 + 155 * count / max_count))
+                colors.append(QColor(intensity, 100, 50, 180))
+        
+        if freqs:
+            self.historical_bars.setOpts(
+                x=freqs, height=counts, width=0.8, brushes=colors
+            )
+            # Ajustar Y
+            self.historical_plot.setYRange(0, max(counts) + 2)
+        else:
+            self.historical_bars.setData(x=[], height=[])
+    
+    def _update_real_plot(self):
+        """Actualiza gráfica de tiempo real."""
+        if not self.current_detections:
+            self.real_bars.setData(x=[], height=[])
+            return
+        
+        # Filtrar detecciones dentro del rango visible
+        freqs = []
+        powers = []
+        colors = []
+        
+        for det in self.current_detections:
+            freq = det.get('freq', 0)
+            if self.freq_min <= freq <= self.freq_max:
+                freqs.append(freq)
+                power = det.get('power', -100)
+                powers.append(power)
+                
+                # Color según potencia
+                if power > -40:
+                    colors.append(QColor(255, 50, 50, 220))   # Rojo
+                elif power > -60:
+                    colors.append(QColor(255, 200, 50, 220))  # Amarillo
+                elif power > -80:
+                    colors.append(QColor(50, 200, 50, 220))   # Verde
+                else:
+                    colors.append(QColor(80, 100, 255, 180))  # Azul
+        
+        if freqs:
+            self.real_bars.setOpts(
+                x=freqs, height=powers, width=0.7, brushes=colors
+            )
+            # Ajustar Y según potencias visibles
+            if powers:
+                max_power = max(powers)
+                min_power = min(-100, max_power - 30)
+                self.real_plot.setYRange(min_power, max_power + 10)
+        else:
+            self.real_bars.setData(x=[], height=[])
+    
+    def _on_plot_click(self, event):
+        """Maneja clic en las gráficas."""
+        # Determinar en qué plot se hizo clic
+        plot = None
+        if event.currentItem in self.real_plot.items():
+            plot = self.real_plot
+        elif event.currentItem in self.historical_plot.items():
+            plot = self.historical_plot
+        
+        if plot is None:
+            return
+        
+        # Obtener posición
+        pos = plot.plotItem.vb.mapSceneToView(event.scenePos())
+        freq = pos.x()
+        
+        # Buscar detección más cercana
+        closest_det = None
+        min_diff = 1.0
+        
+        for det in self.current_detections:
+            diff = abs(det.get('freq', 0) - freq)
+            if diff < min_diff:
+                min_diff = diff
+                closest_det = det
+        
+        if closest_det:
+            self._show_detection_info(closest_det)
+            self.frequency_selected.emit(closest_det.get('freq', 0))
+    
+    def _show_detection_info(self, det):
+        """Muestra información detallada."""
+        freq = det.get('freq', 0)
+        power = det.get('power', -100)
+        bw = det.get('bandwidth', 0)
+        snr = det.get('snr', 0)
+        sig_type = det.get('type', 'Desconocido')
+        
+        if power > -40:
+            alert_level = "🔴 CRÍTICA"
+        elif power > -60:
+            alert_level = "🟡 ALTA"
+        elif power > -80:
+            alert_level = "🟢 MEDIA"
+        else:
+            alert_level = "⚪ BAJA"
+        
+        info_text = f"""
+        <b>{sig_type}</b> &nbsp;&nbsp;|&nbsp;&nbsp;
+        📍 <b>{freq:.4f}</b> MHz &nbsp;&nbsp;|&nbsp;&nbsp;
+        📊 <b>{power:.1f}</b> dB &nbsp;&nbsp;|&nbsp;&nbsp;
+        📏 <b>{bw:.2f}</b> MHz &nbsp;&nbsp;|&nbsp;&nbsp;
+        📈 SNR: <b>{snr:.1f}</b> dB &nbsp;&nbsp;|&nbsp;&nbsp;
+        {alert_level}
+        """
+        
+        self.selected_info.setText(info_text)
+        self.selected_info.setStyleSheet("color: #ffaa44; font-size: 9pt;")
+    
+    def _decay_historical(self):
+        """Decae gradualmente el contador histórico."""
+        decay_factor = 0.95
+        to_remove = []
+        
+        for freq, count in self.historical_counts.items():
+            new_count = int(count * decay_factor)
+            if new_count < 1:
+                to_remove.append(freq)
+            else:
+                self.historical_counts[freq] = new_count
+        
+        for freq in to_remove:
+            del self.historical_counts[freq]
+        
+        if to_remove:
+            self._update_historical_plot()
+    
+    def clear_historical(self):
+        """Limpia el histórico y emite señal."""
+        self.historical_counts.clear()
+        self._update_historical_plot()
+        self.cleared.emit()  # <-- EMITIR SEÑAL
+        self.logger.info("🗑️ Historial limpiado")
+    
+    def get_historical_data(self):
+        """Retorna los datos históricos para exportación."""
+        data = []
+        for freq, count in self.historical_counts.items():
+            data.append({
+                'frequency_mhz': freq,
+                'detection_count': count
+            })
+        return sorted(data, key=lambda x: x['frequency_mhz'])
+
+====================
+ARCHIVO: ./widgets/map_window.py
+====================
+
+# -*- coding: utf-8 -*-
+
+"""
+Map Window - Ventana de Mapa Táctico Desacoplable
+==================================================
+"""
+
+import logging
+from datetime import datetime
+from PyQt5.QtWidgets import QDesktopWidget, QMainWindow
+from PyQt5.QtCore import QTimer
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.uic import loadUi
+
+
+class MapWindow(QMainWindow):
+    
+    def __init__(self, parent=None, station_id="EST-001"):
+        super().__init__(parent)
+        self.logger = logging.getLogger(__name__)
+        self.station_id = station_id
+        self.gps_data = None
+        self.map_view = None
+        
+        # Cargar UI
+        loadUi('ui/map_window.ui', self)
+
+        # ===== APLICAR TEMA =====
+        if parent and hasattr(parent, 'theme_manager'):
+            # Heredar tema del dock padre
+            theme = parent.theme_manager.get_theme_colors(parent.theme_manager.current_theme)
+            self._apply_theme(theme)
+        # ========================
+        
+        # Configurar UI
+        self._setup_ui()
+        self._setup_map()
+        self._setup_clock()
+        self._setup_connections()
+        
+        # Posicionar en segundo monitor si existe
+        self._position_on_second_screen()
+        
+        self.logger.info(f"🗺️ MapWindow creada para {station_id}")
+    
+    def _setup_ui(self):
+        """Configura elementos de la UI."""
+        self.label_station_id.setText(self.station_id)
+        self.setWindowTitle(f"🗺️ MAPA TÁCTICO - {self.station_id}")
+    
+    def _setup_map(self):
+        """Inicializa el QWebEngineView en el frame del mapa."""
+        self.map_view = QWebEngineView()
+        self.verticalLayout_map.addWidget(self.map_view)
+    
+    def _setup_clock(self):
+        """Timer para actualizar hora."""
+        self.clock_timer = QTimer()
+        self.clock_timer.timeout.connect(self._update_clock)
+        self.clock_timer.start(1000)
+    
+    def _setup_connections(self):
+        """Conecta señales de la barra de herramientas."""
+        self.pushButton_center.clicked.connect(self._on_center)
+        self.pushButton_zoom_in.clicked.connect(self._on_zoom_in)
+        self.pushButton_zoom_out.clicked.connect(self._on_zoom_out)
+        self.pushButton_measure.toggled.connect(self._on_measure)
+        self.pushButton_add_marker.clicked.connect(self._on_add_marker)
+        self.comboBox_map_layer.currentIndexChanged.connect(self._on_layer_changed)
+    
+    def _update_clock(self):
+        self.label_time.setText(datetime.now().strftime("%H:%M:%S"))
+    
+    def _position_on_second_screen(self):
+        """Posiciona en segundo monitor si existe."""
+        desktop = QDesktopWidget()
+        if desktop.screenCount() > 1:
+            screen_geo = desktop.screenGeometry(1)
+            self.move(screen_geo.x() + 100, screen_geo.y() + 100)
+    
+    # ------------------------------------------------------------------------
+    # MAPA
+    # ------------------------------------------------------------------------
+    
+    def load_map(self, lat=19.4326, lon=-99.1332, zoom=15):
+        """Carga el mapa Leaflet."""
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8"/>
+        <style>
+          body {{ margin: 0; background: #0d1218; }}
+          #map {{ width: 100%; height: 100vh; cursor: crosshair; }}
+        </style>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        </head>
+        <body>
+        <div id="map"></div>
+        <script>
+          var map = L.map('map', {{zoomControl: false}}).setView([{lat}, {lon}], {zoom});
+          L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{maxZoom: 19}}).addTo(map);
+          var marker = L.marker([{lat}, {lon}]).addTo(map);
+          marker.bindTooltip("{self.station_id}", {{permanent: true, direction: 'top'}});
+          
+          map.on('mousemove', function(e) {{
+              window.py_cursor_pos(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6));
+          }});
+          
+          function updatePosition(lat, lon, z) {{
+              map.setView([lat, lon], z || {zoom});
+              marker.setLatLng([lat, lon]);
+          }}
+          function zoomIn() {{ map.zoomIn(); }}
+          function zoomOut() {{ map.zoomOut(); }}
+        </script>
+        </body>
+        </html>
+        """
+        self.map_view.setHtml(html)
+    
+    # ------------------------------------------------------------------------
+    # SLOTS DE HERRAMIENTAS
+    # ------------------------------------------------------------------------
+    
+    def _on_center(self):
+        if self.gps_data:
+            self.update_position(self.gps_data['lat'], self.gps_data['lon'])
+    
+    def _on_zoom_in(self):
+        self.map_view.page().runJavaScript("zoomIn();")
+    
+    def _on_zoom_out(self):
+        self.map_view.page().runJavaScript("zoomOut();")
+    
+    def _on_measure(self, checked):
+        if checked:
+            self.logger.info("📏 Modo medición activado")
+            # TODO: Implementar medición de distancia
+        else:
+            self.logger.info("📏 Modo medición desactivado")
+    
+    def _on_add_marker(self):
+        self.logger.info("📍 Añadiendo marcador")
+        # TODO: Implementar añadir marcador
+    
+    def _on_layer_changed(self, index):
+        self.logger.info(f"🗺️ Capa cambiada: {self.comboBox_map_layer.currentText()}")
+        # TODO: Cambiar capa del mapa
+    
+    # ------------------------------------------------------------------------
+    # ACTUALIZACIÓN DESDE EL DOCK
+    # ------------------------------------------------------------------------
+    
+    def update_cursor_position(self, lat_str: str, lon_str: str):
+        try:
+            lat = float(lat_str)
+            lon = float(lon_str)
+            self.label_cursor.setText(f"🖱️ {lat:.6f}, {lon:.6f}")
+        except (ValueError, TypeError):
+            pass
+    
+    def update_gps_info(self, gps_data: dict):
+        self.gps_data = gps_data
+        fix = gps_data.get('fix', 0)
+        fix_emoji = {0: '🔴', 1: '🟡', 2: '🟢', 3: '🟢'}
+        fix_text = {0: 'NO', 1: '1D', 2: '2D', 3: '3D'}
+        self.label_fix.setText(f"{fix_emoji.get(fix, '⚪')} {fix_text.get(fix, '?')}")
+        self.label_sats.setText(f"{gps_data.get('sats', 0)} sat")
+        self.label_prec.setText(f"{gps_data.get('precision', 0):.1f} m")
+        self.label_alt.setText(f"{gps_data.get('alt', 0):.1f} m")
+    
+    def update_position(self, lat: float, lon: float, zoom: int = 15):
+        js = f"updatePosition({lat}, {lon}, {zoom});"
+        self.map_view.page().runJavaScript(js)
+    
+    def closeEvent(self, event):
+        self.clock_timer.stop()
+        self.logger.info("🗺️ MapWindow cerrada")
+        event.accept()
+
+
+    def _apply_theme(self, theme: dict):
+        """Aplica colores del tema a los elementos personalizados."""
+        # Toolbar
+        self.widget_map_toolbar.setStyleSheet(
+            f"background: {theme['background'].name()}; "
+            f"border-bottom: 1px solid {theme['accent'].name()};"
+        )
+        
+        # Label estación
+        self.label_station_id.setStyleSheet(
+            f"font-weight: bold; color: {theme['accent'].name()}; font-size: 10pt;"
+        )
+        
+        # Separadores
+        sep_style = f"background: {theme['grid'].name()};"
+        self.frame_toolbar_sep_1.setStyleSheet(sep_style)
+        self.frame_toolbar_sep_2.setStyleSheet(sep_style)
+        
+        # Barra de estado
+        self.frame_status_bar.setStyleSheet(
+            f"background: {theme['background'].name()}; "
+            f"border-top: 1px solid {theme['dock_border'].name()};"
+        )
+        
+        # Cursor
+        self.label_cursor.setStyleSheet(
+            f"color: {theme['accent'].name()}; font-family: monospace; font-size: 9pt;"
+        )
+        
+        # Labels de estado
+        label_style = f"color: {theme['foreground'].name()}; font-size: 9pt;"
+        for label in [self.label_fix, self.label_sats, self.label_prec, 
+                      self.label_time, self.label_alt]:
+            label.setStyleSheet(label_style)
 
 ====================
 ARCHIVO: ./widgets/artemis_widget.py
@@ -9826,6 +10899,470 @@ class SignalDetectorWidget(QDockWidget):
 
 
 ====================
+ARCHIVO: ./widgets/station_info_widget.py
+====================
+
+# -*- coding: utf-8 -*-
+
+"""
+Station Info Widget - Información de Estación con Mapa Desacoplable
+====================================================================
+Panel plegable con ID, hora, posición GPS y mapa.
+Soporta expansión en el mismo dock y desacople a ventana independiente.
+"""
+
+import logging
+from datetime import datetime, timezone
+from PyQt5.QtWidgets import (QDockWidget, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QLabel, QFrame, QDesktopWidget,
+                             QSizePolicy)
+from PyQt5.QtCore import QTimer, Qt, QUrl
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.uic import loadUi
+
+
+class MapWindow(QMainWindow):
+    """Ventana independiente para el mapa táctico."""
+    
+    def __init__(self, parent=None, station_id="EST-001"):
+        super().__init__(parent)
+        self.station_id = station_id
+        self.setWindowTitle(f"🗺️ MAPA TÁCTICO - {station_id}")
+        self.setMinimumSize(800, 600)
+        
+        # Widget central
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Mapa grande
+        self.map_view = QWebEngineView()
+        self.map_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout.addWidget(self.map_view, stretch=1)
+        
+        # Barra inferior
+        self.status_bar = QFrame()
+        self.status_bar.setMaximumHeight(28)
+        self.status_bar.setStyleSheet(
+            "QFrame { background: #1a1e24; border-top: 1px solid #2a3a4a; }"
+        )
+        status_layout = QHBoxLayout(self.status_bar)
+        status_layout.setContentsMargins(10, 2, 10, 2)
+        status_layout.setSpacing(12)
+        
+        self.label_cursor = QLabel("🖱️ ---, ---")
+        self.label_cursor.setStyleSheet("color: #00aaff; font-family: monospace; font-size: 9pt;")
+        self.label_cursor.setMinimumWidth(220)
+        status_layout.addWidget(self.label_cursor)
+        
+        status_layout.addStretch()
+        
+        self.label_fix = QLabel("---")
+        self.label_fix.setStyleSheet("color: #aaa; font-size: 9pt;")
+        status_layout.addWidget(self.label_fix)
+        
+        self.label_sats = QLabel("0 sat")
+        self.label_sats.setStyleSheet("color: #aaa; font-size: 9pt;")
+        status_layout.addWidget(self.label_sats)
+        
+        self.label_prec = QLabel("---")
+        self.label_prec.setStyleSheet("color: #aaa; font-size: 9pt;")
+        status_layout.addWidget(self.label_prec)
+        
+        self.label_time = QLabel("--:--:--")
+        self.label_time.setStyleSheet("color: #aaa; font-size: 9pt;")
+        status_layout.addWidget(self.label_time)
+        
+        self.label_alt = QLabel("---")
+        self.label_alt.setStyleSheet("color: #aaa; font-size: 9pt;")
+        status_layout.addWidget(self.label_alt)
+        
+        layout.addWidget(self.status_bar)
+        
+        # Timer para hora
+        self.clock_timer = QTimer()
+        self.clock_timer.timeout.connect(self._update_clock)
+        self.clock_timer.start(1000)
+    
+    def _update_clock(self):
+        self.label_time.setText(datetime.now().strftime("%H:%M:%S"))
+    
+    def load_map(self, lat=19.4326, lon=-99.1332, zoom=15):
+        """Carga el mapa Leaflet."""
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8"/>
+        <style>
+          body {{ margin: 0; background: #0d1218; }}
+          #map {{ width: 100%; height: 100vh; cursor: crosshair; }}
+        </style>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        </head>
+        <body>
+        <div id="map"></div>
+        <script>
+          var map = L.map('map', {{zoomControl: true, attributionControl: false}}).setView([{lat}, {lon}], {zoom});
+          L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{maxZoom: 19}}).addTo(map);
+          var marker = L.marker([{lat}, {lon}]).addTo(map);
+          marker.bindTooltip("EST-001", {{permanent: true, direction: 'top'}});
+          
+          map.on('mousemove', function(e) {{
+              window.py_cursor_pos(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6));
+          }});
+          
+          function updatePosition(lat, lon, z) {{
+              map.setView([lat, lon], z || {zoom});
+              marker.setLatLng([lat, lon]);
+          }}
+        </script>
+        </body>
+        </html>
+        """
+        self.map_view.setHtml(html)
+        self.map_view.loadFinished.connect(self._on_map_loaded)
+    
+    def _on_map_loaded(self):
+        """Conecta el evento de movimiento del mouse."""
+        self.map_view.page().runJavaScript("""
+            map.on('mousemove', function(e) {
+                window.py_cursor_pos(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6));
+            });
+        """)
+    
+    def update_cursor_position(self, lat_str: str, lon_str: str):
+        """Actualiza la etiqueta de posición del cursor."""
+        try:
+            lat = float(lat_str)
+            lon = float(lon_str)
+            self.label_cursor.setText(f"🖱️ {lat:.6f}, {lon:.6f}")
+        except ValueError:
+            pass
+    
+    def update_gps_info(self, gps_data: dict):
+        """Actualiza barra inferior con datos GPS."""
+        fix = gps_data.get('fix', 0)
+        fix_emoji = {0: '🔴', 1: '🟡', 2: '🟢', 3: '🟢'}
+        fix_text = {0: 'NO', 1: '1D', 2: '2D', 3: '3D'}
+        
+        self.label_fix.setText(f"{fix_emoji.get(fix, '⚪')} {fix_text.get(fix, '?')}")
+        self.label_sats.setText(f"{gps_data.get('sats', 0)} sat")
+        self.label_prec.setText(f"{gps_data.get('precision', 0):.1f} m")
+        self.label_alt.setText(f"{gps_data.get('alt', 0):.1f} m")
+    
+    def update_position(self, lat: float, lon: float, zoom: int = 15):
+        """Mueve el marcador del mapa."""
+        js = f"updatePosition({lat}, {lon}, {zoom});"
+        self.map_view.page().runJavaScript(js)
+    
+    def closeEvent(self, event):
+        self.clock_timer.stop()
+        event.accept()
+
+
+# ============================================================================
+# WIDGET PRINCIPAL
+# ============================================================================
+
+class StationInfoWidget(QDockWidget):
+    """Widget de información de estación con mapa desacoplable."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.logger = logging.getLogger(__name__)
+        loadUi('ui/station_info_widget.ui', self)
+        
+        # Estado
+        self.station_id = "EST-001"
+        self.expanded = False
+        self.gps_data = None
+        self.map_window = None
+        self.compact_map_view = None
+        self.expanded_size = None      
+        self.collapsed_size = None    
+
+        # Timer para hora
+        self.clock_timer = QTimer()
+        self.clock_timer.timeout.connect(self._update_clock)
+        self.clock_timer.start(1000)
+        
+        # Configurar UI
+        self._setup_ui()
+        self._setup_maps()
+        self._update_clock()
+        
+        # GPS demo al iniciar
+        self._set_demo_gps()
+        
+        self.logger.info("✅ StationInfoWidget inicializado")
+    
+    def _setup_ui(self):
+        """Configura el estado inicial."""
+        self.widget_details.setVisible(False)
+        self.label_id.setText(self.station_id)
+        
+        # Conectar botones
+        self.pushButton_toggle.clicked.connect(self.toggle_details)
+        self.pushButton_detach.clicked.connect(self.toggle_map_window)
+        self.pushButton_gps_update.clicked.connect(self._on_gps_update)
+        self.pushButton_manual_pos.clicked.connect(self._on_manual_pos)
+    
+    def _setup_maps(self):
+        """Inicializa ambos mapas (compacto y desacoplado)."""
+        # Placeholder para mapa compacto
+        placeholder = QLabel("🗺️\nMapa no disponible")
+        placeholder.setAlignment(Qt.AlignCenter)
+        placeholder.setStyleSheet("color: #555; font-size: 12pt;")
+        self.verticalLayout_map_compact.addWidget(placeholder)
+        
+        # El mapa compacto se carga la primera vez que se expande
+        self.compact_map_loaded = False
+    
+    def _load_compact_map(self):
+        """Carga el mapa compacto en el dock."""
+        if self.compact_map_loaded:
+            return
+        
+        # Limpiar placeholder
+        layout = self.frame_map_compact.layout()
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Crear mapa compacto
+        self.compact_map_view = QWebEngineView()
+        layout.addWidget(self.compact_map_view)
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8"/>
+        <style>
+          body {{ margin: 0; background: #0d1218; }}
+          #map {{ width: 100%; height: 100vh; }}
+        </style>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        </head>
+        <body>
+        <div id="map"></div>
+        <script>
+          var map = L.map('map', {{zoomControl: false, attributionControl: false}}).setView([19.4326, -99.1332], 14);
+          L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{maxZoom: 19}}).addTo(map);
+          var marker = L.marker([19.4326, -99.1332]).addTo(map);
+          
+          function updatePosition(lat, lon, z) {{
+              map.setView([lat, lon], z || 14);
+              marker.setLatLng([lat, lon]);
+          }}
+        </script>
+        </body>
+        </html>
+        """
+        self.compact_map_view.setHtml(html)
+        self.compact_map_loaded = True
+        self.logger.info("🗺️ Mapa compacto cargado")
+    
+    # ------------------------------------------------------------------------
+    # RELOJ
+    # ------------------------------------------------------------------------
+    
+    def _update_clock(self):
+        now = datetime.now()
+        utc = datetime.now(timezone.utc)
+        
+        if self.gps_data:
+            lat_str = f"{self.gps_data.get('lat', 0):.4f}"
+            lon_str = f"{self.gps_data.get('lon', 0):.4f}"
+        else:
+            lat_str = "--"
+            lon_str = "--"
+        
+        self.label_header_info.setText(f"{now.strftime('%H:%M')} | {lat_str}, {lon_str}")
+        self.label_local_time.setText(now.strftime("%H:%M:%S"))
+        self.label_utc_time.setText(utc.strftime("%H:%M:%S"))
+        self.label_date.setText(now.strftime("%Y-%m-%d"))
+    
+    # ------------------------------------------------------------------------
+    # GPS
+    # ------------------------------------------------------------------------
+    
+    def _set_demo_gps(self):
+        """GPS de demostración."""
+        demo = {
+            'lat': 19.432600, 'lon': -99.133200, 'alt': 2240.5,
+            'fix': 3, 'sats': 12, 'precision': 2.5
+        }
+        self.update_gps(demo)
+    
+    def update_gps(self, data: dict):
+        """Actualiza datos GPS."""
+        self.gps_data = data
+        lat = data.get('lat', 0)
+        lon = data.get('lon', 0)
+        
+        self.label_lat.setText(f"{lat:.6f}°")
+        self.label_lon.setText(f"{lon:.6f}°")
+        self.label_alt.setText(f"{data.get('alt', 0):.1f} m")
+        
+        fix = data.get('fix', 0)
+        fix_emoji = {0: '🔴', 1: '🟡', 2: '🟢', 3: '🟢'}
+        self.label_gps_status.setText(
+            f"{fix_emoji.get(fix, '⚪')} Fix: {fix}D | "
+            f"Sats: {data.get('sats', 0)} | Prec: {data.get('precision', 0):.1f} m"
+        )
+        
+        # Actualizar mapas si existen
+        if lat != 0 or lon != 0:
+            self._update_map_positions(lat, lon)
+        
+        # Ventana desacoplada
+        if self.map_window and self.map_window.isVisible():
+            self.map_window.update_gps_info(data)
+            self.map_window.update_position(lat, lon)
+        
+        self._update_clock()
+    
+    def _update_map_positions(self, lat: float, lon: float):
+        """Actualiza posición en mapas."""
+        js = f"updatePosition({lat}, {lon});"
+        if self.compact_map_view:
+            self.compact_map_view.page().runJavaScript(js)
+    
+    def _on_gps_update(self):
+        """Fuerza actualización GPS."""
+        self.logger.info("📍 Actualización GPS solicitada")
+        self._set_demo_gps()
+    
+    def _on_manual_pos(self):
+        """Abre diálogo para ingresar posición manual."""
+        self.logger.info("✏️ Posición manual solicitada")
+        # TODO: Implementar diálogo de entrada manual
+    
+    # ------------------------------------------------------------------------
+    # EXPANDIR/COLAPSAR
+    # ------------------------------------------------------------------------
+    
+    '''def toggle_details(self):
+        """Expande/colapsa los detalles."""
+        self.expanded = not self.expanded
+        self.widget_details.setVisible(self.expanded)
+        self.pushButton_toggle.setText("▲" if self.expanded else "▼")
+        
+        # Cargar mapa compacto al expandir por primera vez
+        if self.expanded and not self.compact_map_loaded:
+            self._load_compact_map()'''
+
+
+    def toggle_details(self):
+        """Expande/colapsa los detalles con restauración de tamaño."""
+        self.expanded = not self.expanded
+        
+        if self.expanded:
+            # Guardar tamaño actual antes de expandir
+            self.collapsed_size = self.size()
+            
+            # Mostrar detalles
+            self.widget_details.setVisible(True)
+            self.pushButton_toggle.setText("▲")
+            
+            # Restaurar tamaño expandido guardado o usar default
+            if self.expanded_size:
+                self.resize(self.expanded_size)
+            else:
+                self.resize(self.width(), 650)
+            
+            # Cargar mapa compacto al expandir por primera vez
+            if not self.compact_map_loaded:
+                self._load_compact_map()
+        else:
+            # Guardar tamaño expandido para restaurar después
+            self.expanded_size = self.size()
+            
+            # Ocultar detalles
+            self.widget_details.setVisible(False)
+            self.pushButton_toggle.setText("▼")
+            
+            # Volver al tamaño compacto
+            if hasattr(self, 'collapsed_size'):
+                self.resize(self.collapsed_size)
+            else:
+                self.resize(self.width(), 70)
+        
+        # Forzar actualización del layout
+        self.updateGeometry()
+    
+    # ------------------------------------------------------------------------
+    # VENTANA DESACOPLADA
+    # ------------------------------------------------------------------------
+    
+    def toggle_map_window(self):
+        """Abre/cierra la ventana de mapa desacoplado."""
+        if self.map_window and self.map_window.isVisible():
+            self.map_window.close()
+            self.map_window = None
+            self.logger.info("🗺️ Mapa desacoplado cerrado")
+        else:
+            self._open_map_window()
+    
+    def _open_map_window(self):
+        """Abre el mapa en ventana independiente."""
+        self.map_window = MapWindow(self, self.station_id)
+        
+        # Cargar mapa
+        lat = self.gps_data.get('lat', 19.4326) if self.gps_data else 19.4326
+        lon = self.gps_data.get('lon', -99.1332) if self.gps_data else -99.1332
+        self.map_window.load_map(lat, lon)
+        
+        # Conectar señal de posición del cursor
+        self.map_window.map_view.page().loadFinished.connect(
+            lambda: self._connect_cursor_signal()
+        )
+        
+        # Actualizar datos GPS
+        if self.gps_data:
+            self.map_window.update_gps_info(self.gps_data)
+        
+        self.map_window.show()
+        self.logger.info("🗺️ Mapa desacoplado abierto")
+    
+    def _connect_cursor_signal(self):
+        """Conecta la señal de posición del cursor."""
+        if self.map_window:
+            self.map_window.map_view.page().runJavaScript("""
+                map.on('mousemove', function(e) {
+                    window.py_cursor_pos(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6));
+                });
+            """)
+    
+    # ------------------------------------------------------------------------
+    # ID ESTACIÓN
+    # ------------------------------------------------------------------------
+    
+    def set_station_id(self, station_id: str):
+        self.station_id = station_id
+        self.label_id.setText(station_id)
+    
+    def get_station_id(self) -> str:
+        return self.lineEdit_name.text() or self.station_id
+    
+    # ------------------------------------------------------------------------
+    # CIERRE
+    # ------------------------------------------------------------------------
+    
+    def closeEvent(self, event):
+        self.clock_timer.stop()
+        if self.map_window:
+            self.map_window.close()
+        event.accept()
+
+====================
 ARCHIVO: ./widgets/frequency_spinner.py
 ====================
 
@@ -10758,32 +12295,36 @@ class SpectrumPlot(QObject):
     # DATA UPDATE
     # ------------------------------------------------------------------------
     
-    def update_plot(self, spectrum, frequencies, max_hold=None, min_hold=None) -> None:
+    def update_plot(self, spectrum, frequencies, max_hold=None, min_hold=None):
         """
-        Update plot with new spectrum data.
-        
-        Args:
-            spectrum: Power spectrum array (dB)
-            frequencies: Frequency axis (MHz)
-            max_hold: Max hold data (optional)
-            min_hold: Min hold data (optional)
+        Actualiza el plot en modo normal (sin baseline).
         """
         try:
             if spectrum is not None and frequencies is not None:
                 self.current_spectrum = spectrum
                 self.current_frequencies = frequencies
                 
-                # Main curve
+                # Curva principal
                 self.curve.setData(frequencies, spectrum)
                 
-                # Hold curves
-                if self.max_hold_enabled and max_hold is not None:
+                # Curvas Max/Min (solo si se pasan explícitamente)
+                if max_hold is not None:
                     self.max_curve.setData(frequencies, max_hold)
+                    self.max_curve.setVisible(self.max_hold_enabled)
+                else:
+                    self.max_curve.setVisible(False)
                 
-                if self.min_hold_enabled and min_hold is not None:
+                if min_hold is not None:
                     self.min_curve.setData(frequencies, min_hold)
+                    self.min_curve.setVisible(self.min_hold_enabled)
+                else:
+                    self.min_curve.setVisible(False)
                 
-                # Update marker power
+                # Ocultar baseline si estaba visible
+                if hasattr(self, 'baseline_curve') and self.baseline_curve is not None:
+                    self.baseline_curve.setVisible(False)
+                
+                # Actualizar marcador
                 if not self.freq_marker.dragging:
                     center_freq = self._get_initial_frequency()
                     self.freq_marker.set_frequency(center_freq)
@@ -10815,42 +12356,39 @@ class SpectrumPlot(QObject):
         return 100.0
     
     def update_plot_with_baseline(self, spectrum, frequencies, max_hold=None, min_hold=None, baseline=None):
-        """Actualiza el plot con soporte para baseline."""
-        # Actualizar curva principal
-        self.curve.setData(frequencies, spectrum)
-        
-        # Actualizar Max/Min
-        if self.max_hold_enabled and max_hold is not None:
-            self.max_curve.setData(frequencies, max_hold)
-            self.max_curve.setVisible(True)
-        else:
-            self.max_curve.setVisible(False)
-            
-        if self.min_hold_enabled and min_hold is not None:
-            self.min_curve.setData(frequencies, min_hold)
-            self.min_curve.setVisible(True)
-        else:
-            self.min_curve.setVisible(False)
-        
-        # Actualizar Baseline
-        if baseline is not None and len(baseline) == len(frequencies):
-            if not hasattr(self, 'baseline_curve') or self.baseline_curve is None:
-                self.baseline_curve = self.plot_widget.plot(
-                    [], 
-                    pen=pg.mkPen(color=(128, 128, 128, 180), width=1.5, style=Qt.DashLine),
-                    name="Baseline"
-                )
-            self.baseline_curve.setData(frequencies, baseline)
-            self.baseline_curve.setVisible(True)
-        elif hasattr(self, 'baseline_curve') and self.baseline_curve is not None:
-            self.baseline_curve.setVisible(False)
-        
-        # Actualizar marcador
-        if not self.freq_marker.dragging:
-            center_freq = self._get_initial_frequency()
-            self.freq_marker.set_frequency(center_freq)
-            power = self._get_power_at_frequency(center_freq)
-            self.freq_marker.set_power(power)
+        """Actualiza el plot mostrando el espectro y la línea de baseline."""
+        try:
+            if spectrum is not None and frequencies is not None:
+                # Curva principal (espectro filtrado - solo diferencias)
+                self.curve.setData(frequencies, spectrum)
+                
+                # Ocultar max/min en modo TSCM
+                self.max_curve.setVisible(False)
+                self.min_curve.setVisible(False)
+                
+                # Mostrar baseline como línea punteada
+                if baseline is not None and len(baseline) == len(frequencies):
+                    if not hasattr(self, 'baseline_curve') or self.baseline_curve is None:
+                        self.baseline_curve = self.plot_widget.plot(
+                            [], 
+                            pen=pg.mkPen(color=(128, 128, 128, 200), width=1.5, style=Qt.DashLine),
+                            name="Baseline"
+                        )
+                    self.baseline_curve.setData(frequencies, baseline)
+                    self.baseline_curve.setVisible(True)
+                    self.logger.debug(f"📊 Baseline dibujada: min={baseline.min():.1f}, max={baseline.max():.1f}")
+                elif hasattr(self, 'baseline_curve') and self.baseline_curve is not None:
+                    self.baseline_curve.setVisible(False)
+                
+                # Actualizar marcador
+                if not self.freq_marker.dragging:
+                    center_freq = self._get_initial_frequency()
+                    self.freq_marker.set_frequency(center_freq)
+                    power = self._get_power_at_frequency(center_freq)
+                    self.freq_marker.set_power(power)
+                    
+        except Exception as e:
+            self.logger.error(f"Error updating spectrum plot with baseline: {e}")
 
 
     
@@ -11410,7 +12948,8 @@ class PlaybackController:
 
             # Restaurar indicador de modo
             if hasattr(self.main, 'update_mode_indicator'):
-                self.main.update_mode_indicator('live')
+                self.main.update_mode_indicator()
+                self.logger.info("📻 Indicador de modo restaurado")
             
             self.main.statusbar.showMessage("⏹ Playback stopped", 3000)
             self.logger.info("✅ Playback stopped successfully")
@@ -12096,6 +13635,10 @@ class RFController:
             if hasattr(self.main, 'set_record_button_enabled'):
                 self.main.set_record_button_enabled(True)
 
+            # Actualizar estado visual del botón (gris oscuro, listo para grabar)
+            if hasattr(self.main, 'update_record_button_state'):
+                self.main.update_record_button_state(False)
+
             # Actualizar indicador de modo
             if hasattr(self.main, 'update_mode_indicator'):
                 self.main.update_mode_indicator('live')
@@ -12385,6 +13928,10 @@ class RFController:
             if hasattr(self.main, 'set_record_button_enabled'):
                 self.main.set_record_button_enabled(False)
 
+            # Actualizar estado visual del botón (gris deshabilitado)
+            if hasattr(self.main, 'update_record_button_state'):
+                self.main.update_record_button_state(False)
+
             # Actualizar indicador de modo
             if hasattr(self.main, 'update_mode_indicator'):
                 self.main.update_mode_indicator('idle')
@@ -12544,22 +14091,16 @@ ARCHIVO: ./controller/tscm_controller.py
 TSCM Controller - Controlador de Análisis Diferencial
 =====================================================
 Gestiona la lógica del modo TSCM (Technical Surveillance Counter-Measures).
-Trabaja en conjunto con FFTController para acceder a los datos del espectro.
+Implementa agrupación de frecuencias para mostrar señales reales, no bins individuales.
 """
 
 import logging
 import numpy as np
 from datetime import datetime
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 
 
 class TSCMController(QObject):
-    """
-    Controlador para el análisis TSCM / Modo Diferencias.
-    
-    Señales:
-        stats_updated: Emitida cuando cambian las estadísticas (alert_count, frequencies)
-    """
     
     stats_updated = pyqtSignal(int, list)
 
@@ -12572,23 +14113,28 @@ class TSCMController(QObject):
         self.baseline_spectrum = None
         self.diff_mode_enabled = False
         self.diff_threshold_db = 4.0
-        self.dwell_frames = 6  # 200ms a 30fps ≈ 6 frames
+        self.dwell_frames = 6
         self.alert_dwell_counter = None
         self._baseline_captured = False
         
-        # Referencia al widget (se establece después)
-        self.widget = None
+        # Para captura por tiempo
+        self._capture_in_progress = False
+        self._capture_buffer = []
+        self._capture_timer = None
+        self._capture_duration_frames = 30
+        self._capture_frame_count = 0
         
-        # Contador de frames para logs
+        # Guardar estado de max/min
+        self._saved_max_enabled = False
+        self._saved_min_enabled = False
+        
+        self.widget = None
         self._tscm_frame_counter = 0
         
         self.logger.info("✅ TSCMController inicializado")
 
     def set_widget(self, widget):
-        """Establece la referencia al widget TSCM."""
         self.widget = widget
-        
-        # Conectar señales del widget
         if widget:
             widget.tscm_capture_baseline.connect(self.capture_baseline)
             widget.tscm_mode_toggled.connect(self.toggle_diff_mode)
@@ -12600,120 +14146,317 @@ class TSCMController(QObject):
             self.logger.info("✅ Señales TSCM conectadas")
 
     # ------------------------------------------------------------------------
-    # MÉTODOS PRINCIPALES TSCM
+    # CAPTURA DE BASELINE CON TIEMPO
     # ------------------------------------------------------------------------
 
     def capture_baseline(self):
-        """
-        Captura el espectro actual (max_hold) como línea base.
-        """
-        self.logger.info("=" * 50)
+        """Captura la baseline respetando el tiempo seleccionado."""
+        self.logger.info("=" * 60)
         self.logger.info("📸 CAPTURANDO BASELINE TSCM...")
         
-        # Obtener max_hold del FFTController
-        if hasattr(self.main, 'fft_ctrl') and hasattr(self.main.fft_ctrl, 'main'):
-            max_hold = self.main.fft_ctrl.main.max_hold
-        else:
-            max_hold = getattr(self.main, 'max_hold', None)
-        
-        if max_hold is not None:
-            self.logger.info(f"   max_hold shape: {max_hold.shape}")
-            self.logger.info(f"   max_hold min/max: {max_hold.min():.1f} / {max_hold.max():.1f} dB")
-            
-            self.baseline_spectrum = max_hold.copy()
-            self.alert_dwell_counter = np.zeros(len(self.baseline_spectrum), dtype=int)
-            self._baseline_captured = True
-            
+        if not self.main.is_running:
+            self.logger.error("❌ La captura RF no está activa")
+            self.main.statusbar.showMessage("❌ Inicie la captura RF antes de capturar baseline", 3000)
             if self.widget:
-                self.widget.update_baseline_status(True)
-            
-            self.logger.info("✅ Baseline capturada exitosamente")
-            self.main.statusbar.showMessage("📸 Baseline TSCM capturada", 2000)
-            
-            self.logger.info("=" * 50)
-            return True
+                self.widget.update_baseline_status(False)
+            return False
         
-        self.logger.error("❌ No se pudo capturar baseline: max_hold es None")
-        self.main.statusbar.showMessage("❌ Error: No hay datos para capturar baseline", 3000)
+        capture_time_seconds = self._get_capture_time_from_widget()
+        self.logger.info(f"   Tiempo de captura: {capture_time_seconds} segundos")
+        
+        frames_needed = int(capture_time_seconds * 30)
+        self._capture_duration_frames = max(5, frames_needed)
+        
+        self.logger.info(f"   Frames a capturar: {self._capture_duration_frames}")
+        
+        self._capture_in_progress = True
+        self._capture_buffer = []
+        self._capture_frame_count = 0
         
         if self.widget:
-            self.widget.update_baseline_status(False)
+            self.widget.set_capturing_progress(True, 0)
+            self.widget.pushButton_capture_baseline.setEnabled(False)
         
-        self.logger.info("=" * 50)
-        return False
+        self._capture_timer = QTimer()
+        self._capture_timer.timeout.connect(self._collect_baseline_frame)
+        self._capture_timer.start(33)
+        
+        return True
+
+    def _get_capture_time_from_widget(self) -> float:
+        """Obtiene el tiempo de captura del combobox."""
+        if self.widget and hasattr(self.widget, 'comboBox_capture_time'):
+            text = self.widget.comboBox_capture_time.currentText()
+            try:
+                import re
+                match = re.search(r'(\d+)', text)
+                if match:
+                    return float(match.group(1))
+            except:
+                pass
+        return 2.0
+
+    def _collect_baseline_frame(self):
+        """Recolecta un frame para la baseline."""
+        if not self._capture_in_progress:
+            return
+        
+        spectrum = self._get_live_spectrum()
+        
+        if spectrum is not None:
+            self._capture_buffer.append(spectrum.copy())
+        
+        self._capture_frame_count += 1
+        
+        if self.widget:
+            progress = int(self._capture_frame_count * 100 / self._capture_duration_frames)
+            progress = min(progress, 99)
+            self.widget.set_capturing_progress(True, progress)
+        
+        if self._capture_frame_count >= self._capture_duration_frames:
+            self._finalize_baseline_capture()
+
+    def _finalize_baseline_capture(self):
+        """Finaliza la captura y calcula la baseline promediada."""
+        if self._capture_timer:
+            self._capture_timer.stop()
+            self._capture_timer = None
+        
+        self._capture_in_progress = False
+        
+        if not self._capture_buffer:
+            self.logger.error("❌ No se capturaron frames para baseline")
+            if self.widget:
+                self.widget.update_baseline_status(False)
+                self.widget.set_capturing_progress(False, 0)
+                self.widget.pushButton_capture_baseline.setEnabled(True)
+            return False
+        
+        stacked = np.stack(self._capture_buffer, axis=0)
+        self.baseline_spectrum = np.median(stacked, axis=0)
+        
+        self.alert_dwell_counter = np.zeros(len(self.baseline_spectrum), dtype=int)
+        self._baseline_captured = True
+        
+        self.logger.info(f"✅ Baseline capturada con {len(self._capture_buffer)} frames")
+        self.logger.info(f"   Shape: {self.baseline_spectrum.shape}")
+        self.logger.info(f"   Min: {self.baseline_spectrum.min():.1f} dB")
+        self.logger.info(f"   Max: {self.baseline_spectrum.max():.1f} dB")
+        self.logger.info(f"   Mean: {self.baseline_spectrum.mean():.1f} dB")
+        
+        if self.widget:
+            self.widget.update_baseline_status(True)
+            self.widget.set_capturing_progress(False, 100)
+            self.widget.pushButton_capture_baseline.setEnabled(True)
+        
+        self.main.statusbar.showMessage(
+            f"📸 Baseline capturada ({len(self._capture_buffer)} frames)", 
+            3000
+        )
+        
+        self.logger.info("=" * 60)
+        self._capture_buffer = None
+        
+        return True
+
+    # ------------------------------------------------------------------------
+    # OBTENER ESPECTRO VIVO
+    # ------------------------------------------------------------------------
+
+    def _get_live_spectrum(self) -> np.ndarray:
+        """Obtiene el espectro actual en vivo."""
+        if hasattr(self.main, 'fft_ctrl'):
+            if hasattr(self.main.fft_ctrl, '_prev_spectrum'):
+                spectrum = self.main.fft_ctrl._prev_spectrum
+                if spectrum is not None and len(spectrum) > 0:
+                    return spectrum
+        
+        if hasattr(self.main, 'max_hold') and self.main.max_hold is not None:
+            spectrum = self.main.max_hold
+            if len(spectrum) > 0 and np.max(spectrum) > -100:
+                return spectrum
+        
+        return None
+
+    # ------------------------------------------------------------------------
+    # AGRUPACIÓN DE FRECUENCIAS (OPCIÓN 3)
+    # ------------------------------------------------------------------------
+
+    def _group_alert_frequencies(self, alert_indices, freq_axis_mhz, min_gap_mhz=0.5):
+        """
+        Agrupa bins contiguos en alerta y devuelve frecuencias representativas.
+        
+        Args:
+            alert_indices: Array de índices de bins en alerta
+            freq_axis_mhz: Array de frecuencias en MHz
+            min_gap_mhz: Separación mínima entre grupos (MHz)
+                         Valores típicos: 0.1 para señales muy cercanas, 
+                                         0.5 para separación normal,
+                                         1.0 para señales distantes
+        
+        Returns:
+            Lista de frecuencias centrales de cada grupo (MHz)
+        """
+        if len(alert_indices) == 0:
+            return []
+        
+        # Obtener frecuencias de los bins en alerta
+        freqs = freq_axis_mhz[alert_indices]
+        
+        # Calcular diferencias entre bins consecutivos
+        diffs = np.diff(freqs)
+        
+        # Encontrar puntos de corte (donde la diferencia > min_gap_mhz)
+        # Convertir min_gap_mhz a MHz (ya está en MHz)
+        cut_points = np.where(diffs > min_gap_mhz)[0]
+        
+        # Crear grupos
+        groups = []
+        start_idx = 0
+        
+        for cut in cut_points:
+            # Grupo desde start_idx hasta cut
+            group_freqs = freqs[start_idx:cut + 1]
+            if len(group_freqs) > 0:
+                # Frecuencia central del grupo
+                center_freq = np.mean(group_freqs)
+                groups.append(round(center_freq, 4))
+            start_idx = cut + 1
+        
+        # Último grupo
+        last_group = freqs[start_idx:]
+        if len(last_group) > 0:
+            center_freq = np.mean(last_group)
+            groups.append(round(center_freq, 4))
+        
+        return groups
+
+    def _get_alert_ranges(self, alert_indices, freq_axis_mhz, min_gap_mhz=0.5):
+        """
+        Devuelve rangos de frecuencia donde hay alertas (formato string).
+        
+        Returns:
+            Lista de strings como "2412.5-2420.3" o "2450.0"
+        """
+        if len(alert_indices) == 0:
+            return []
+        
+        freqs = freq_axis_mhz[alert_indices]
+        diffs = np.diff(freqs)
+        cut_points = np.where(diffs > min_gap_mhz)[0]
+        
+        ranges = []
+        start_idx = 0
+        
+        for cut in cut_points:
+            start_freq = freqs[start_idx]
+            end_freq = freqs[cut]
+            
+            if end_freq - start_freq > 0.1:
+                ranges.append(f"{start_freq:.3f}-{end_freq:.3f}")
+            else:
+                ranges.append(f"{start_freq:.3f}")
+            
+            start_idx = cut + 1
+        
+        # Último rango
+        start_freq = freqs[start_idx]
+        end_freq = freqs[-1]
+        if end_freq - start_freq > 0.1:
+            ranges.append(f"{start_freq:.3f}-{end_freq:.3f}")
+        else:
+            ranges.append(f"{start_freq:.3f}")
+        
+        return ranges
+
+    # ------------------------------------------------------------------------
+    # MODO DIFERENCIAS
+    # ------------------------------------------------------------------------
 
     def toggle_diff_mode(self, enabled: bool):
-        """
-        Activa o desactiva el modo de análisis diferencial.
-        """
-        self.logger.info("=" * 50)
-        self.logger.info(f"🔘 TOGGLE MODO DIFERENCIAS: {enabled}")
+        """Activa o desactiva el modo de análisis diferencial."""
+        self.logger.info("=" * 60)
+        self.logger.info(f"🔘 toggle_diff_mode({enabled})")
         
-        # Verificar que el SDR esté capturando
-        if enabled and not self.main.is_running:
-            self.logger.warning("⚠️ No se puede activar TSCM: captura no iniciada")
-            self.main.statusbar.showMessage("❌ Inicie la captura antes de activar TSCM", 3000)
+        if enabled and self.baseline_spectrum is None:
+            self.logger.warning("⚠️ No se puede activar TSCM: no hay baseline")
+            self.main.statusbar.showMessage("❌ Capture baseline primero", 3000)
             if self.widget:
                 self.widget.set_diff_mode_active(False)
             return
         
+        if enabled and not self.main.is_running:
+            self.logger.warning("⚠️ No se puede activar TSCM: captura no iniciada")
+            self.main.statusbar.showMessage("❌ Inicie la captura RF antes de activar TSCM", 3000)
+            if self.widget:
+                self.widget.set_diff_mode_active(False)
+            return
+        
+        # Guardar estado de max/min antes de activar
+        if enabled and not self.diff_mode_enabled:
+            self._saved_max_enabled = self.main.plot_max
+            self._saved_min_enabled = self.main.plot_min
+            self.logger.info(f"   Guardado Max={self._saved_max_enabled}, Min={self._saved_min_enabled}")
+            
+            # Ocultar max/min en UI
+            if hasattr(self.main, 'viz_widget'):
+                if hasattr(self.main.viz_widget, 'checkBox_plot_max'):
+                    self.main.viz_widget.checkBox_plot_max.setChecked(False)
+                if hasattr(self.main.viz_widget, 'checkBox_plot_min'):
+                    self.main.viz_widget.checkBox_plot_min.setChecked(False)
+        
         self.diff_mode_enabled = enabled
         
         if enabled:
-            # Si no hay baseline, capturarla automáticamente
-            if self.baseline_spectrum is None:
-                self.logger.info("   ⚠️ No hay baseline, capturando automáticamente...")
-                if not self.capture_baseline():
-                    self.logger.error("   ❌ No se pudo capturar baseline automáticamente")
-                    self.main.statusbar.showMessage("❌ Error al capturar baseline automática", 3000)
-                    if self.widget:
-                        self.widget.set_diff_mode_active(False)
-                    self.diff_mode_enabled = False
-                    return
-            
-            # Desactivar Max/Min en Visualization
-            self._set_max_min_enabled(False)
-            
+            self.logger.info(f"   ✅ Modo diferencias ACTIVADO")
             self.logger.info(f"   Umbral: {self.diff_threshold_db} dB")
             self.logger.info(f"   Dwell frames: {self.dwell_frames}")
             self.main.statusbar.showMessage("🔴 MODO DIFERENCIAS (TSCM) ACTIVADO", 0)
-            
-            # Resetear estadísticas
             if self.widget:
                 self.widget.reset_stats()
         else:
-            # Restaurar Max/Min
-            self._set_max_min_enabled(True)
+            # Restaurar max/min al salir
+            if hasattr(self, '_saved_max_enabled'):
+                self.main.plot_max = self._saved_max_enabled
+                self.main.plot_min = self._saved_min_enabled
+                self.logger.info(f"   Restaurado Max={self.main.plot_max}, Min={self.main.plot_min}")
+                
+                # Restaurar UI de max/min
+                if hasattr(self.main, 'viz_widget'):
+                    if hasattr(self.main.viz_widget, 'checkBox_plot_max'):
+                        self.main.viz_widget.checkBox_plot_max.setChecked(self.main.plot_max)
+                    if hasattr(self.main.viz_widget, 'checkBox_plot_min'):
+                        self.main.viz_widget.checkBox_plot_min.setChecked(self.main.plot_min)
             
-            self.logger.info("   Modo diferencias DESACTIVADO")
+            self.logger.info(f"   ✅ Modo diferencias DESACTIVADO")
             self.main.statusbar.showMessage("⚪ Modo Diferencias Desactivado", 2000)
-
-        # Actualizar indicador de modo
+        
         if hasattr(self.main, 'update_mode_indicator'):
             if enabled:
                 self.main.update_mode_indicator('tscm')
             else:
                 self.main.update_mode_indicator('live')
         
-        # Notificar al FFTController que el modo TSCM cambió
-        self._notify_fft_controller()
-        
-        self.logger.info("=" * 50)
+        self.logger.info("=" * 60)
 
     def set_diff_threshold(self, threshold_db: float):
-        """Establece el umbral de diferencia en dB."""
         self.diff_threshold_db = threshold_db
-        self.logger.info(f"📊 Umbral TSCM actualizado: {threshold_db} dB")
+        self.logger.info(f"📊 Umbral TSCM: {threshold_db} dB")
 
     def set_dwell_time(self, dwell_ms: int):
-        """Establece el tiempo de confirmación (dwell time)."""
-        self.dwell_frames = max(1, int(dwell_ms / 33))  # 33ms por frame a 30fps
-        self.logger.info(f"⏱️ Dwell TSCM actualizado: {dwell_ms}ms → {self.dwell_frames} frames")
+        self.dwell_frames = max(1, int(dwell_ms / 33))
+        self.logger.info(f"⏱️ Dwell TSCM: {dwell_ms}ms → {self.dwell_frames} frames")
 
     def clear_baseline(self):
         """Elimina la baseline capturada."""
-        self.logger.info("=" * 50)
         self.logger.info("🗑️ LIMPIANDO BASELINE TSCM...")
+        
+        if self._capture_in_progress:
+            if self._capture_timer:
+                self._capture_timer.stop()
+                self._capture_timer = None
+            self._capture_in_progress = False
+            self._capture_buffer = None
         
         self.baseline_spectrum = None
         self.alert_dwell_counter = None
@@ -12721,32 +14464,31 @@ class TSCMController(QObject):
         
         if self.widget:
             self.widget.update_baseline_status(False)
+            self.widget.set_capturing_progress(False, 0)
+            self.widget.pushButton_capture_baseline.setEnabled(True)
         
-        # Si el modo diferencias está activo, desactivarlo
         if self.diff_mode_enabled:
-            self.logger.info("   ⚠️ Modo diferencias activo, desactivando...")
             self.diff_mode_enabled = False
             if self.widget:
                 self.widget.set_diff_mode_active(False)
-            self._set_max_min_enabled(True)
-            self._notify_fft_controller()
+            if hasattr(self.main, 'update_mode_indicator'):
+                self.main.update_mode_indicator('live')
         
-        self.logger.info("✅ Baseline eliminada")
         self.main.statusbar.showMessage("🗑️ Baseline TSCM eliminada", 2000)
-        self.logger.info("=" * 50)
+        self.logger.info("✅ Baseline eliminada")
 
     # ------------------------------------------------------------------------
-    # PROCESAMIENTO DE ESPECTRO (llamado desde FFTController)
+    # PROCESAMIENTO DE ESPECTRO (CORE)
     # ------------------------------------------------------------------------
 
-    def process_spectrum(self, live_spectrum: np.ndarray, freq_axis_mhz: np.ndarray = None) -> tuple:
+    '''def process_spectrum(self, live_spectrum: np.ndarray, freq_axis_mhz: np.ndarray = None) -> tuple:
         """
         Procesa el espectro actual aplicando la lógica TSCM.
         
         Args:
             live_spectrum: Espectro actual en dB
-            freq_axis_mhz: Eje de frecuencias en MHz (opcional, para estadísticas)
-            
+            freq_axis_mhz: Eje de frecuencias en MHz
+        
         Returns:
             tuple: (filtered_spectrum, baseline_to_plot)
         """
@@ -12754,118 +14496,242 @@ class TSCMController(QObject):
             return live_spectrum, None
         
         if len(live_spectrum) != len(self.baseline_spectrum):
-            self.logger.warning(f"⚠️ Tamaño incompatible: live={len(live_spectrum)}, baseline={len(self.baseline_spectrum)}")
             return live_spectrum, None
         
-        # 1. Calcular diferencia instantánea
+        # Calcular diferencia
         diff = live_spectrum - self.baseline_spectrum
         instant_alert = diff > self.diff_threshold_db
         
-        # 2. Actualizar contador de persistencia
+        # Actualizar contador de persistencia
         self.alert_dwell_counter = np.where(
             instant_alert,
             np.minimum(self.alert_dwell_counter + 1, self.dwell_frames),
             np.maximum(self.alert_dwell_counter - 2, 0)
         )
         
-        # 3. Máscara final
         confirmed_alert_mask = self.alert_dwell_counter >= self.dwell_frames
         
-        # 4. Aplicar máscara
+        # Espectro filtrado
         filtered_spectrum = np.where(
             confirmed_alert_mask,
             live_spectrum,
             self.main.FLOOR_DB
         )
         
-        # 5. Actualizar estadísticas y logs
         self._tscm_frame_counter += 1
         alert_count = np.sum(confirmed_alert_mask)
         
-        # Actualizar widget con estadísticas
-        if self.widget and self._tscm_frame_counter % 10 == 0:  # Cada ~333ms
+        # ===== ACTUALIZAR ESTADÍSTICAS CON AGRUPACIÓN DE FRECUENCIAS =====
+        if self.widget and self._tscm_frame_counter % 10 == 0:
             if alert_count > 0 and freq_axis_mhz is not None:
                 alert_indices = np.where(confirmed_alert_mask)[0]
-                alert_freqs = freq_axis_mhz[alert_indices][:5].tolist()
-                self.widget.update_stats(alert_count, alert_freqs)
+                
+                # OPCIÓN 3: Agrupar frecuencias por cercanía (0.5 MHz de separación)
+                # Una señal de 20 MHz se agrupa en UNA frecuencia central
+                grouped_freqs = self._group_alert_frequencies(
+                    alert_indices, 
+                    freq_axis_mhz, 
+                    min_gap_mhz=0.5  # 500 kHz de separación mínima
+                )
+                
+                # También obtener rangos para logging
+                ranges = self._get_alert_ranges(
+                    alert_indices, 
+                    freq_axis_mhz, 
+                    min_gap_mhz=0.5
+                )
+                
+                # Log detallado
+                self.logger.info(f"🎯 TSCM: {alert_count} bins en alerta → {len(grouped_freqs)} señales distintas")
+                if ranges:
+                    self.logger.info(f"   Rangos: {', '.join(ranges[:5])}" + 
+                                    (f" (+{len(ranges)-5})" if len(ranges) > 5 else ""))
+                
+                # Enviar al widget (máximo 10 señales para no saturar)
+                self.widget.update_stats(alert_count, grouped_freqs[:10])
             else:
                 self.widget.update_stats(alert_count)
         
-        # Log periódico
-        if self._tscm_frame_counter % 30 == 0:  # Cada ~1 segundo
-            self.logger.info(f"🎯 MODO TSCM ACTIVO - Frame {self._tscm_frame_counter}")
-            self.logger.info(f"   Umbral: {self.diff_threshold_db} dB")
-            self.logger.info(f"   Baseline min/max: {self.baseline_spectrum.min():.1f} / {self.baseline_spectrum.max():.1f} dB")
-            self.logger.info(f"   Live min/max: {live_spectrum.min():.1f} / {live_spectrum.max():.1f} dB")
-            self.logger.info(f"   Diferencia máxima: {diff.max():.1f} dB")
-            self.logger.info(f"   Alertas instantáneas: {np.sum(instant_alert)} bins")
-            self.logger.info(f"   Alertas activas: {alert_count} / {len(live_spectrum)} bins")
-            
-            if alert_count > 0 and freq_axis_mhz is not None:
-                alert_indices = np.where(confirmed_alert_mask)[0]
-                self.logger.info(f"   Frecuencias con alerta: {freq_axis_mhz[alert_indices][:5]} MHz")
+        return filtered_spectrum, self.baseline_spectrum'''
+    
+    def process_spectrum(self, live_spectrum: np.ndarray, freq_axis_mhz: np.ndarray = None) -> tuple:
+        """
+        Procesa el espectro actual aplicando la lógica TSCM.
         
-        # Emitir señal de estadísticas
+        Returns:
+            tuple: (filtered_spectrum, baseline_to_plot, detections_list)
+        """
+        if not self.diff_mode_enabled or self.baseline_spectrum is None:
+            return live_spectrum, None, []
+        
+        if len(live_spectrum) != len(self.baseline_spectrum):
+            return live_spectrum, None, []
+        
+        # Calcular diferencia
+        diff = live_spectrum - self.baseline_spectrum
+        instant_alert = diff > self.diff_threshold_db
+        
+        # Actualizar contador de persistencia
+        self.alert_dwell_counter = np.where(
+            instant_alert,
+            np.minimum(self.alert_dwell_counter + 1, self.dwell_frames),
+            np.maximum(self.alert_dwell_counter - 2, 0)
+        )
+        
+        confirmed_alert_mask = self.alert_dwell_counter >= self.dwell_frames
+        
+        # Espectro filtrado
+        filtered_spectrum = np.where(
+            confirmed_alert_mask,
+            live_spectrum,
+            self.main.FLOOR_DB
+        )
+        
+        self._tscm_frame_counter += 1
+        alert_count = np.sum(confirmed_alert_mask)
+        
+        # Detectar grupos de alertas (señales)
+        detections = []
         if alert_count > 0 and freq_axis_mhz is not None:
             alert_indices = np.where(confirmed_alert_mask)[0]
-            self.stats_updated.emit(alert_count, freq_axis_mhz[alert_indices][:5].tolist())
+            
+            # Agrupar por cercanía
+            groups = self._group_alert_indices(alert_indices, freq_axis_mhz, min_gap_mhz=0.5)
+            
+            for group in groups:
+                if len(group) == 0:
+                    continue
+                
+                # Calcular métricas del grupo
+                center_freq = float(np.mean(freq_axis_mhz[group]))
+                bandwidth_mhz = self._get_detection_bandwidth(freq_axis_mhz, group)
+                max_power = self._get_max_power_in_group(live_spectrum, group)
+                snr = self._get_avg_snr_in_group(self.baseline_spectrum, live_spectrum, group)
+                
+                # Clasificar por ancho de banda
+                sig_type, sig_icon, sig_desc = self._classify_signal_by_bw(bandwidth_mhz)
+                
+                detections.append({
+                    'freq': round(center_freq, 4),
+                    'bandwidth': bandwidth_mhz,
+                    'power': round(max_power, 1),
+                    'snr': round(snr, 1),
+                    'type': sig_type,
+                    'type_icon': sig_icon,
+                    'description': sig_desc,
+                    'bins': len(group)
+                })
+            
+            # Log de detecciones (CORREGIDO)
+            if detections:
+                det_str = []
+                for d in detections[:5]:
+                    det_str.append(f"{d['freq']:.1f}MHz({d['type']})")
+                self.logger.info(f"🎯 {len(detections)} señales detectadas: {', '.join(det_str)}")
         
-        return filtered_spectrum, self.baseline_spectrum
+        # Actualizar widget con detecciones (cada 10 frames)
+        if self.widget and self._tscm_frame_counter % 10 == 0:
+            self.widget.update_stats(alert_count, detections if detections else None)
 
+        baseline_to_plot = self.baseline_spectrum  # <-- Debe ser el array completo
+        
+        return filtered_spectrum, baseline_to_plot, detections
+
+    
     def is_diff_mode_active(self) -> bool:
-        """Retorna True si el modo diferencias está activo."""
         return self.diff_mode_enabled
 
     def has_baseline(self) -> bool:
-        """Retorna True si hay una baseline capturada."""
         return self._baseline_captured and self.baseline_spectrum is not None
 
-    # ------------------------------------------------------------------------
-    # MÉTODOS AUXILIARES
-    # ------------------------------------------------------------------------
-
-    def _set_max_min_enabled(self, enabled: bool):
-        """Habilita/deshabilita las curvas Max/Min en VisualizationWidget."""
-        if hasattr(self.main, 'viz_widget'):
-            if hasattr(self.main.viz_widget, 'checkBox_plot_max'):
-                self.main.viz_widget.checkBox_plot_max.setEnabled(enabled)
-                if not enabled:
-                    self.main.viz_widget.checkBox_plot_max.setChecked(False)
-            if hasattr(self.main.viz_widget, 'checkBox_plot_min'):
-                self.main.viz_widget.checkBox_plot_min.setEnabled(enabled)
-                if not enabled:
-                    self.main.viz_widget.checkBox_plot_min.setChecked(False)
-            if hasattr(self.main.viz_widget, 'comboBox_hold_time'):
-                self.main.viz_widget.comboBox_hold_time.setEnabled(enabled)
-
-    def _notify_fft_controller(self):
-        """Notifica al FFTController que el estado TSCM ha cambiado."""
-        if hasattr(self.main, 'fft_ctrl'):
-            # Establecer una bandera que FFTController pueda consultar
-            pass  # FFTController consultará is_diff_mode_active()
-
     def export_log(self):
-        """Exporta el log de alertas a un archivo."""
         self.logger.info("📤 Exportando log de alertas TSCM...")
-        # TODO: Implementar exportación a CSV
         self.main.statusbar.showMessage("📤 Exportación de alertas (funcionalidad en desarrollo)", 3000)
 
     def toggle_sound(self, enabled: bool):
-        """Activa/desactiva el sonido de alerta."""
-        self.logger.info(f"🔊 Sonido de alerta: {'activado' if enabled else 'desactivado'}")
-        # TODO: Implementar sonido de alerta
+        self.logger.info(f"🔊 Sonido alerta: {'activado' if enabled else 'desactivado'}")
 
     def on_capture_started(self):
-        """Llamado cuando se inicia la captura."""
         if self.widget:
             self.widget.set_controls_enabled(True)
 
     def on_capture_stopped(self):
-        """Llamado cuando se detiene la captura."""
         if self.diff_mode_enabled:
             self.toggle_diff_mode(False)
         if self.widget:
             self.widget.set_controls_enabled(False)
+
+    def _classify_signal_by_bw(self, bandwidth_mhz: float) -> tuple:
+        """
+        Clasifica una señal por su ancho de banda.
+        
+        Returns:
+            tuple: (tipo_string, icono, descripcion)
+        """
+        if bandwidth_mhz < 0.05:
+            return ("Portadora", "⚡", "Señal muy estrecha")
+        elif bandwidth_mhz < 0.2:
+            return ("Digital estrecha", "📻", "Comunicación digital")
+        elif bandwidth_mhz < 0.5:
+            return ("Voz digital", "🎤", "Walkie-talkie digital")
+        elif bandwidth_mhz < 2:
+            return ("Voz", "📞", "Comunicación de voz")
+        elif bandwidth_mhz < 7:
+            return ("Digital ancha", "📡", "Transmisión de datos")
+        elif bandwidth_mhz < 15:
+            return ("WiFi 20MHz", "📶", "Red WiFi estándar")
+        elif bandwidth_mhz < 30:
+            return ("WiFi 40MHz", "📶📶", "WiFi de alto ancho")
+        elif bandwidth_mhz < 60:
+            return ("Radar/Drone", "🚁", "Posible drone o radar")
+        else:
+            return ("Ultra ancha", "📡📡", "Señal muy ancha")
+
+    def _get_detection_bandwidth(self, freq_axis_mhz, alert_indices):
+        """Calcula el ancho de banda de un grupo de bins en alerta."""
+        if len(alert_indices) < 2:
+            return 0.05  # Mínimo 50 kHz
+        
+        freqs = freq_axis_mhz[alert_indices]
+        return round(freqs[-1] - freqs[0], 3)
+
+    def _get_max_power_in_group(self, spectrum, alert_indices):
+        """Obtiene la potencia máxima en un grupo de bins."""
+        if len(alert_indices) == 0:
+            return -120
+        return float(np.max(spectrum[alert_indices]))
+
+    def _get_avg_snr_in_group(self, baseline, spectrum, alert_indices):
+        """Calcula el SNR promedio en un grupo."""
+        if len(alert_indices) == 0:
+            return 0
+        diff = spectrum[alert_indices] - baseline[alert_indices]
+        return float(np.mean(diff))
+    
+    def _group_alert_indices(self, alert_indices, freq_axis_mhz, min_gap_mhz=0.5):
+        """
+        Agrupa índices de bins contiguos en alerta.
+        
+        Returns:
+            Lista de listas de índices agrupados
+        """
+        if len(alert_indices) == 0:
+            return []
+        
+        freqs = freq_axis_mhz[alert_indices]
+        groups = []
+        current_group = [alert_indices[0]]
+        
+        for i in range(1, len(alert_indices)):
+            # Verificar si los bins son contiguos en frecuencia
+            if freqs[i] - freqs[i-1] < min_gap_mhz:
+                current_group.append(alert_indices[i])
+            else:
+                groups.append(current_group)
+                current_group = [alert_indices[i]]
+        
+        groups.append(current_group)
+        return groups
 
 ====================
 ARCHIVO: ./controller/detector_controller.py
@@ -13685,6 +15551,8 @@ from controller.audio_controller import AudioController
 
 from controller.tscm_controller import TSCMController
 
+from widgets.station_info_widget import StationInfoWidget
+
 
 from utils.theme_manager import ThemeManager
 from utils.config_manager import ConfigManager
@@ -13720,6 +15588,9 @@ class MainController(QMainWindow):
         # Cargar UI principal
         loadUi('ui/mainwindow.ui', self)
 
+        self._init_station_widget()
+
+
        
         # ===== INICIALIZAR COMPONENTES =====
         self._init_components()
@@ -13748,6 +15619,13 @@ class MainController(QMainWindow):
         # Cargar configuración
         self.config_manager.load_all_settings(self)
 
+        # Inicializar estación
+        '''if hasattr(self, 'station_widget'):
+            # Cargar ID guardado o usar valor por defecto
+            station_id = self.config_manager.settings.value("station/id", "EST-001", type=str)
+            self.station_widget.set_station_id(station_id)
+            self.logger.info(f"📻 Estación: {station_id}")'''
+
 
         # AHORA, después de cargar la configuración, intentar cargar Artemis
         if hasattr(self, 'artemis_widget') and hasattr(self.artemis_widget, 'auto_load_from_config'):
@@ -13762,6 +15640,12 @@ class MainController(QMainWindow):
             self.logger.info("✅ Callback de metadata conectado")
         
         self.logger.info("✅ Controlador principal inicializado")
+
+    def _init_station_widget(self):
+        """Inicializa el widget de estación."""
+        if hasattr(self, 'station_widget'):
+            station_id = self.config_manager.settings.value("station/id", "EST-001", type=str)
+            self.station_widget.set_station_id(station_id)
     
     def _init_components(self):
         """Inicializa los componentes básicos"""
@@ -13838,26 +15722,29 @@ class MainController(QMainWindow):
             self.viz_widget.set_main_controller(self)
             self.logger.info("🔗 VisualizationWidget conectado al MainController")
 
-
         if hasattr(self, 'artemis_widget'):
             self.artemis_widget.database_loaded.connect(self._on_artemis_db_loaded)
             self.logger.info("🔗 ArtemisWidget conectado para guardar configuración")
 
-        # TSCM Widget
-        self.tscm_widget = TSCMWidget(self)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.tscm_widget)
-        
-        # Conectar TSCM Controller con su Widget
-        self.tscm_ctrl.set_widget(self.tscm_widget)
-        
+        if hasattr(self, 'tscm_widget') and self.tscm_widget is not None:
+            # Conectar el widget al controlador
+            self.tscm_widget.set_main_controller(self)
+            self.logger.info("🔗 TSCMWidget conectado al MainController")
+            
+            # Conectar TSCM Controller con su Widget
+            self.tscm_ctrl.set_widget(self.tscm_widget)
+            self.logger.info("🔗 TSCMController conectado al TSCMWidget")
+        else:
+            self.logger.error("❌ TSCMWidget no existe después de setup_dock_widgets")
+            
         # Conectar FFTController con TSCMController
         if hasattr(self, 'fft_ctrl'):
             self.fft_ctrl.set_tscm_controller(self.tscm_ctrl)
     
         # Inicializar indicador de modo al final del __init__
         if hasattr(self, 'label_mode_indicator'):
-            self.update_mode_indicator('live')
-            self.logger.info("📻 Indicador de modo inicializado: LIVE")
+            self.update_mode_indicator('idle')
+            self.logger.info("📻 Indicador de modo inicializado: ---")
 
 
 
@@ -13873,27 +15760,7 @@ class MainController(QMainWindow):
         else:
             self.logger.error("❌ No se pudo conectar TSCM: fft_ctrl o fft_widget no existen")
 
-    '''def _connect_tscm_signals(self):
-        """Conecta las señales TSCM entre FFTControlsWidget y FFTController."""
-        self.logger.info("=" * 60)
-        self.logger.info("🔗 Conectando señales TSCM...")
-        
-        if hasattr(self, 'fft_ctrl') and hasattr(self, 'fft_widget'):
-            self.logger.info(f"   fft_ctrl: {type(self.fft_ctrl).__name__}")
-            self.logger.info(f"   fft_widget: {type(self.fft_widget).__name__}")
-            
-            # Verificar que el controlador tiene el método
-            if hasattr(self.fft_ctrl, 'connect_fft_widget_signals'):
-                self.fft_ctrl.connect_fft_widget_signals()
-                self.logger.info("✅ Conexiones TSCM establecidas")
-            else:
-                self.logger.error("❌ fft_ctrl NO tiene método connect_fft_widget_signals")
-        else:
-            self.logger.error("❌ fft_ctrl o fft_widget no existen")
-            self.logger.info(f"   fft_ctrl existe: {hasattr(self, 'fft_ctrl')}")
-            self.logger.info(f"   fft_widget existe: {hasattr(self, 'fft_widget')}")
-        
-        self.logger.info("=" * 60)'''
+ 
 
     def _connect_tscm_signals(self):
         """
@@ -14453,74 +16320,14 @@ class MainController(QMainWindow):
                 self.update_mode_indicator('rec')
             # =====================================
     
-    '''def _on_record_main_clicked(self):
-        """Maneja el clic en el botón de grabación rápida."""
-        if not hasattr(self, 'iq_manager'):
-            self.logger.warning("⚠️ IQ Manager no disponible")
-            return
-        
-        iq_manager = self.iq_manager
-        
-        # Verificar si el recorder está activo
-        if hasattr(iq_manager, 'recorder') and iq_manager.recorder and iq_manager.recorder.is_recording:
-            # Detener grabación
-            iq_manager._on_record_stop_clicked()
-        else:
-            # Iniciar grabación
-            iq_manager._on_record_start_clicked()'''
     
-    '''def update_record_button_state(self, is_recording: bool):
-        """
-        Actualiza el estado visual del botón de grabación.
-        Llamado desde IQManagerWidget cuando cambia el estado de grabación.
-        """
-        if not hasattr(self, 'pushButton_record_main'):
-            return
-        
-        if is_recording:
-            self.pushButton_record_main.setText("⏹ DETENER GRAB.")
-            self.pushButton_record_main.setStyleSheet("""
-                QPushButton {
-                    background-color: #ff4444;
-                    color: white;
-                    border: 1px solid #cc0000;
-                    border-radius: 4px;
-                    padding: 6px 12px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #ff6666;
-                }
-            """)
-        else:
-            self.pushButton_record_main.setText("⏺ GRABAR")
-            self.pushButton_record_main.setStyleSheet("""
-                QPushButton {
-                    background-color: #cc0000;
-                    color: white;
-                    border: 1px solid #990000;
-                    border-radius: 4px;
-                    padding: 6px 12px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #ff1a1a;
-                }
-                QPushButton:disabled {
-                    background-color: #666666;
-                    border: 1px solid #444444;
-                    color: #aaaaaa;
-                }
-            """)'''
-
-    # controller/base_controller.py
-
     def update_record_button_state(self, is_recording: bool):
         """Actualiza el estado visual del botón de grabación."""
         if not hasattr(self, 'pushButton_record_main'):
             return
         
         if is_recording:
+            # ROJO - Grabando
             self.pushButton_record_main.setText("⏹")
             self.pushButton_record_main.setStyleSheet("""
                 QPushButton {
@@ -14531,127 +16338,88 @@ class MainController(QMainWindow):
                     padding: 4px;
                     font-weight: bold;
                 }
+                QPushButton:hover {
+                    background-color: #ff6666;
+                }
             """)
-            # ===== NUEVO: Actualizar indicador de modo =====
+            # Actualizar indicador de modo
             if hasattr(self, 'update_mode_indicator'):
                 self.update_mode_indicator('rec')
-            # ==============================================
         else:
-            self.pushButton_record_main.setText("⏺")
-            self.pushButton_record_main.setStyleSheet("""
-                QPushButton {
-                    background-color: #3a1a1a;
-                    color: #ff8888;
-                    border: 1px solid #6a2a2a;
-                    border-radius: 2px;
-                    padding: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:disabled {
-                    background-color: #2a2a2a;
-                    border: 1px solid #3a3a3a;
-                    color: #666666;
-                }
-            """)
-            # ===== NUEVO: Restaurar indicador de modo =====
+            # El botón puede estar habilitado (captura activa) o deshabilitado
+            if self.is_running:
+                # GRIS OSCUO - Habilitado, esperando grabar
+                self.pushButton_record_main.setText("⏺")
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #3a1a1a;
+                        color: #ff8888;
+                        border: 1px solid #6a2a2a;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #5a2a2a;
+                        color: #ffaaaa;
+                    }
+                """)
+            else:
+                # GRIS - Deshabilitado, captura detenida
+                self.pushButton_record_main.setText("⏺")
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2a2a2a;
+                        border: 1px solid #3a3a3a;
+                        color: #666666;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                    }
+                """)
+            
+            # Restaurar indicador de modo
             if hasattr(self, 'update_mode_indicator'):
-                self.update_mode_indicator()  # Auto-detectar
-            # ==============================================
+                self.update_mode_indicator()
     
     def set_record_button_enabled(self, enabled: bool):
         """Habilita/deshabilita el botón de grabación."""
         if hasattr(self, 'pushButton_record_main'):
             self.pushButton_record_main.setEnabled(enabled)
-
-
-    # controller/base_controller.py
-
-    '''def update_mode_indicator(self, mode: str = None):
-        """
-        Actualiza el indicador de modo en la barra superior.
-        Prioridad: REC > TSCM > SCAN > PLAY > LIVE
-        """
-        if not hasattr(self, 'label_mode_indicator'):
-            return
-        
-        if mode is None:
-            # Auto-detectar con prioridad
-            if hasattr(self, 'iq_manager') and self.iq_manager.recorder and self.iq_manager.recorder.is_recording:
-                mode = 'rec'
-            elif hasattr(self, 'tscm_ctrl') and self.tscm_ctrl.is_diff_mode_active():
-                mode = 'tscm'
-            elif self.is_playing_back:
-                mode = 'play'
-            elif hasattr(self, 'detector_ctrl') and hasattr(self.detector_ctrl, 'widget'):
-                if self.detector_ctrl.widget.is_scanning:
-                    mode = 'scanner'
-                else:
-                    mode = 'live'
+            # Actualizar estilo según el estado actual
+            if enabled:
+                # Rojo oscuro - listo para grabar
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #3a1a1a;
+                        color: #ff8888;
+                        border: 1px solid #6a2a2a;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                        font-size: 12pt;
+                    }
+                    QPushButton:hover {
+                        background-color: #5a2a2a;
+                        color: #ffaaaa;
+                        border: 1px solid #aa3a3a;
+                    }
+                """)
             else:
-                mode = 'live'
-        
-        styles = {
-            'live': {
-                'text': 'LIVE',
-                'style': (
-                    "font-weight: bold; font-size: 10pt; "
-                    "color: #88cc88; background-color: #1a2a1a; "
-                    "border: 1px solid #2a6a2a; border-radius: 2px; "
-                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
-                ),
-                'tooltip': 'Sistema en vivo - Captura RF activa'
-            },
-            'rec': {
-                'text': 'REC',
-                'style': (
-                    "font-weight: bold; font-size: 10pt; "
-                    "color: #ff4444; background-color: #2a1010; "
-                    "border: 1px solid #aa2a2a; border-radius: 2px; "
-                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
-                ),
-                'tooltip': 'GRABANDO - Archivo IQ en escritura'
-            },
-            'play': {
-                'text': 'PLAY',
-                'style': (
-                    "font-weight: bold; font-size: 10pt; "
-                    "color: #88aadd; background-color: #1a1a2a; "
-                    "border: 1px solid #2a4a8a; border-radius: 2px; "
-                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
-                ),
-                'tooltip': 'Reproduciendo archivo IQ - Análisis forense'
-            },
-            'scanner': {
-                'text': 'SCAN',
-                'style': (
-                    "font-weight: bold; font-size: 10pt; "
-                    "color: #ddcc44; background-color: #2a2a1a; "
-                    "border: 1px solid #8a8a2a; border-radius: 2px; "
-                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
-                ),
-                'tooltip': 'Escaneo de señales activo - Búsqueda en progreso'
-            },
-            'tscm': {
-                'text': 'TSCM',
-                'style': (
-                    "font-weight: bold; font-size: 10pt; "
-                    "color: #ff8844; background-color: #2a1a0a; "
-                    "border: 1px solid #8a4a2a; border-radius: 2px; "
-                    "padding: 2px 8px; text-transform: uppercase; letter-spacing: 2px;"
-                ),
-                'tooltip': 'Modo Contravigilancia - Análisis diferencial activo'
-            }
-        }
-        
-        config = styles.get(mode, styles['live'])
-        self.label_mode_indicator.setText(config['text'])
-        self.label_mode_indicator.setStyleSheet(config['style'])
-        self.label_mode_indicator.setToolTip(config['tooltip'])
-        
-        self.logger.info(f"📻 Indicador de modo: {config['text']}")
+                # Gris - deshabilitado
+                self.pushButton_record_main.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2a2a2a;
+                        border: 1px solid #3a3a3a;
+                        color: #666666;
+                        border-radius: 2px;
+                        padding: 4px;
+                        font-weight: bold;
+                        font-size: 12pt;
+                    }
+                """)
 
 
-        # controller/base_controller.py'''
 
     def update_mode_indicator(self, mode: str = None):
         """
@@ -14750,6 +16518,41 @@ class MainController(QMainWindow):
         self.label_mode_indicator.setToolTip(config['tooltip'])
         
         self.logger.info(f"📻 Indicador de modo: {config['text']}")
+
+
+
+    def _init_gps(self):
+        """Inicializa GPS si está disponible."""
+        try:
+            import gps
+            self.gps_session = gps.gps(mode=gps.WATCH_ENABLE)
+            self.gps_timer = QTimer()
+            self.gps_timer.timeout.connect(self._poll_gps)
+            self.gps_timer.start(1000)  # Cada segundo
+            self.logger.info("📍 GPS inicializado")
+        except ImportError:
+            self.logger.info("📍 gpsd no disponible")
+        except Exception as e:
+            self.logger.debug(f"GPS: {e}")
+
+    def _poll_gps(self):
+        """Lee datos del GPS."""
+        try:
+            if hasattr(self, 'gps_session'):
+                report = self.gps_session.next()
+                if report.get('class') == 'TPV':
+                    data = {
+                        'lat': getattr(report, 'lat', 0),
+                        'lon': getattr(report, 'lon', 0),
+                        'alt': getattr(report, 'alt', 0),
+                        'fix': getattr(report, 'mode', 0),
+                        'sats': getattr(self.gps_session, 'satellites_used', 0),
+                        'precision': getattr(report, 'epx', 0) or getattr(report, 'eph', 0)
+                    }
+                    if hasattr(self, 'station_widget'):
+                        self.station_widget.update_gps(data)
+        except Exception:
+            pass
 
 ====================
 ARCHIVO: ./controller/fft_controller.py
@@ -14972,6 +16775,108 @@ class FFTController:
     # SPECTRUM UPDATE
     # ------------------------------------------------------------------------
     # controller/fft_controller.py
+    '''def update_spectrum(self, fft_data: np.ndarray) -> None:
+        """Update all visualizations with new FFT frame."""
+        try:
+            sample_rate, center_freq_hz = self._get_current_parameters()
+            
+            fft_size = len(fft_data)
+            center_freq_mhz = center_freq_hz / 1e6
+            sample_rate_mhz = sample_rate / 1e6
+            
+            freq_axis_mhz = np.linspace(
+                center_freq_mhz - sample_rate_mhz / 2,
+                center_freq_mhz + sample_rate_mhz / 2,
+                fft_size,
+            )
+            
+            # Aplicar persistencia
+            p = float(getattr(self.main, 'persistence_factor', 0.0))
+            alpha = 1.0 - float(np.clip(p, 0.0, 0.99))
+            
+            fft_f32 = fft_data.astype(np.float32)
+            
+            if self._prev_spectrum is None or len(self._prev_spectrum) != fft_size:
+                displayed = fft_f32.copy()
+            else:
+                displayed = (alpha * fft_f32 + (1.0 - alpha) * self._prev_spectrum).astype(np.float32)
+            
+            self._prev_spectrum = displayed.copy()
+            
+            # Actualizar max/min hold
+            if getattr(self.main, 'reset_max_min_flag', False):
+                self.main.reset_max_min_flag = False
+                self.main.max_hold = fft_data.copy()
+                self.main.min_hold = fft_data.copy()
+            else:
+                self._update_hold_buffers(fft_data, fft_size)
+            
+            # ===== LÓGICA TSCM CORREGIDA =====
+            baseline_to_plot = None
+            plot_max = None
+            plot_min = None
+            plot_baseline = None
+            
+            if self._tscm_controller and self._tscm_controller.is_diff_mode_active():
+                # MODO DIFERENCIAL ACTIVO
+                plot_spectrum, baseline_to_plot = self._tscm_controller.process_spectrum(
+                    displayed, freq_axis_mhz
+                )
+                # NO mostrar max/min en modo diferencial
+                plot_max = None
+                plot_min = None
+                plot_baseline = baseline_to_plot
+            else:
+                # MODO NORMAL: mostrar espectro normal
+                plot_spectrum = displayed
+                
+                # Mostrar max/min SOLO si están habilitados por el usuario
+                if self.main.plot_max:
+                    plot_max = self.main.max_hold
+                if self.main.plot_min:
+                    plot_min = self.main.min_hold
+                
+                # NO mostrar baseline
+                plot_baseline = None
+            
+            # ===== ACTUALIZAR WATERFALL =====
+            self._update_waterfall(
+                plot_spectrum, freq_axis_mhz, center_freq_mhz, sample_rate_mhz,
+                alpha=alpha,
+            )
+            
+            # ===== ACTUALIZAR SPECTRUM PLOT =====
+            if hasattr(self.main, 'spectrum_plot'):
+                if plot_baseline is not None:
+                    # Modo TSCM: mostrar con baseline
+                    self.main.spectrum_plot.update_plot_with_baseline(
+                        plot_spectrum, freq_axis_mhz,
+                        max_hold=plot_max, min_hold=plot_min,
+                        baseline=plot_baseline
+                    )
+                else:
+                    # Modo normal: mostrar sin baseline
+                    self.main.spectrum_plot.update_plot(
+                        plot_spectrum, freq_axis_mhz,
+                        max_hold=plot_max, min_hold=plot_min
+                    )
+            
+            self._update_plot_range(center_freq_mhz, sample_rate_mhz)
+            
+            # Log periódico
+            self._log_frame_counter += 1
+            if self._log_frame_counter >= self._LOG_EVERY_N:
+                self._log_frame_counter = 0
+                self.logger.info(
+                    f"📊 X-axis: {freq_axis_mhz[0]:.1f} – {freq_axis_mhz[-1]:.1f} MHz "
+                    f"(SR={sample_rate_mhz:.1f} MHz)"
+                )
+            
+        except Exception as exc:
+            self.logger.error(f"Error updating graphics: {exc}")
+            import traceback
+            traceback.print_exc()'''
+  
 
     def update_spectrum(self, fft_data: np.ndarray) -> None:
         """Update all visualizations with new FFT frame."""
@@ -14988,7 +16893,7 @@ class FFTController:
                 fft_size,
             )
             
-            # Aplicar persistencia normal
+            # Persistencia
             p = float(getattr(self.main, 'persistence_factor', 0.0))
             alpha = 1.0 - float(np.clip(p, 0.0, 0.99))
             
@@ -14997,13 +16902,11 @@ class FFTController:
             if self._prev_spectrum is None or len(self._prev_spectrum) != fft_size:
                 displayed = fft_f32.copy()
             else:
-                displayed = (
-                    alpha * fft_f32 + (1.0 - alpha) * self._prev_spectrum
-                ).astype(np.float32)
+                displayed = (alpha * fft_f32 + (1.0 - alpha) * self._prev_spectrum).astype(np.float32)
             
             self._prev_spectrum = displayed.copy()
             
-            # Actualizar max/min hold
+            # Actualizar hold buffers
             if getattr(self.main, 'reset_max_min_flag', False):
                 self.main.reset_max_min_flag = False
                 self.main.max_hold = fft_data.copy()
@@ -15011,35 +16914,51 @@ class FFTController:
             else:
                 self._update_hold_buffers(fft_data, fft_size)
             
-            # --- INTEGRACIÓN TSCM ---
+            # ===== MODO TSCM CORREGIDO =====
             baseline_to_plot = None
+            plot_spectrum = None
+            
             if self._tscm_controller and self._tscm_controller.is_diff_mode_active():
-                plot_spectrum, baseline_to_plot = self._tscm_controller.process_spectrum(
+                # Obtener espectro filtrado Y la baseline
+                filtered_spectrum, baseline_to_plot, detections = self._tscm_controller.process_spectrum(
                     displayed, freq_axis_mhz
                 )
+                
+                # El espectro que se muestra debe ser el filtrado (solo diferencias)
+                plot_spectrum = filtered_spectrum
+                
+                # NO mostrar max/min en modo TSCM
                 plot_max = None
                 plot_min = None
+                
+                # Log para verificar que la baseline existe
+                if baseline_to_plot is not None:
+                    self.logger.debug(f"📊 Baseline visible en gráfico (shape: {baseline_to_plot.shape})")
             else:
+                # Modo normal
                 plot_spectrum = displayed
                 plot_max = self.main.max_hold if self.main.plot_max else None
                 plot_min = self.main.min_hold if self.main.plot_min else None
-            # -------------------------
+                baseline_to_plot = None
             
-            # Actualizar waterfall
+            # ===== ACTUALIZAR WATERFALL =====
             self._update_waterfall(
                 plot_spectrum, freq_axis_mhz, center_freq_mhz, sample_rate_mhz,
                 alpha=alpha,
             )
             
-            # Actualizar spectrum plot
+            # ===== ACTUALIZAR SPECTRUM PLOT =====
             if hasattr(self.main, 'spectrum_plot'):
                 if baseline_to_plot is not None:
+                    # Modo TSCM: mostrar espectro filtrado + baseline
                     self.main.spectrum_plot.update_plot_with_baseline(
                         plot_spectrum, freq_axis_mhz,
                         max_hold=plot_max, min_hold=plot_min,
                         baseline=baseline_to_plot
                     )
+                    self.logger.debug(f"📊 Modo TSCM: baseline mostrada")
                 else:
+                    # Modo normal
                     self.main.spectrum_plot.update_plot(
                         plot_spectrum, freq_axis_mhz,
                         max_hold=plot_max, min_hold=plot_min
@@ -15187,6 +17106,8 @@ from widgets.artemis_widget import ArtemisWidget
 
 from widgets.tscm_widget import TSCMWidget
 
+from widgets.station_info_widget import StationInfoWidget  
+
 
 # ============================================================================
 # UI CONTROLLER
@@ -15234,10 +17155,10 @@ class UIController:
         self.main.audio_widget.setObjectName("dock_audio")
         self.main.addDockWidget(Qt.LeftDockWidgetArea, self.main.audio_widget)
         
-        # 5. Detector
-        self.main.detector_widget = self.main.detector_ctrl.create_widget()
-        self.main.detector_widget.setObjectName("dock_signal_detector")
-        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.detector_widget)
+        #5. Station Info
+        self.main.station_widget = StationInfoWidget(self.main)
+        self.main.station_widget.setObjectName("dock_station")
+        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.station_widget)
         
         # 6. IQ Manager
         self.main.iq_manager = IQManagerWidget(self.main)
@@ -15250,12 +17171,20 @@ class UIController:
         self.main.artemis_widget.setObjectName("dock_artemis")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.artemis_widget)
         
-        # 8. TSCM
+        # 5. Detector
+        self.main.detector_widget = self.main.detector_ctrl.create_widget()
+        self.main.detector_widget.setObjectName("dock_signal_detector")
+        self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.detector_widget)
+
+        self.main.splitDockWidget(self.main.station_widget, self.main.detector_widget, Qt.Horizontal)
+
+
+        # 8. TSCM - Crear UNA SOLA VEZ
         self.main.tscm_widget = TSCMWidget(self.main)
         self.main.tscm_widget.setObjectName("dock_tscm")
         self.main.addDockWidget(Qt.RightDockWidgetArea, self.main.tscm_widget)
-       
-        
+        self.logger.info("✅ TSCM Widget creado en setup_dock_widgets")
+      
         # Conectar señal de sintonización
         self.main.artemis_widget.signal_selected.connect(
             self.main.on_frequency_changed_from_plot
@@ -15443,6 +17372,11 @@ class UIController:
             view_menu.addAction(action)
         
         view_menu.addSeparator()
+
+        if hasattr(self.main, 'station_widget'):
+            action = self.main.station_widget.toggleViewAction()
+            action.setText("Estación")
+            view_menu.addAction(action)
         
         if hasattr(self.main, 'audio_widget'):
             action = self.main.audio_widget.toggleViewAction()
@@ -17281,7 +19215,8 @@ class ConfigManager:
         self._save_fft_settings(controller)
         self._save_viz_settings(controller)
         self._save_recording_settings(controller)
-        self._save_detector_settings(controller)      
+        self._save_detector_settings(controller)   
+        self._save_station_settings(controller)   
         self._save_window_settings(controller)
         self._save_theme_settings(controller)
         self._save_artemis_settings(controller)  
@@ -17357,7 +19292,16 @@ class ConfigManager:
         self.settings.endGroup()
         
         self.logger.debug("   Visualization settings saved")
-    
+
+    def _save_station_settings(self, controller) -> None:
+        """Guarda configuración de la estación."""
+        if not hasattr(controller, 'station_widget'):
+            return
+        
+        self.settings.beginGroup("station")
+        self.settings.setValue("id", controller.station_widget.get_station_id())
+        self.settings.endGroup()
+        
     def _save_window_settings(self, controller) -> None:
         """Saves window geometry and dock states."""
         self.settings.beginGroup("window")
@@ -17365,6 +19309,12 @@ class ConfigManager:
         # Window geometry
         self.settings.setValue("geometry", controller.saveGeometry())
         self.settings.setValue("windowState", controller.saveState())
+
+        # Guardar posición del splitter principal
+        if hasattr(controller, 'splitter_main_vertical'):
+            sizes = controller.splitter_main_vertical.sizes()
+            self.settings.setValue("splitter_spectrum_waterfall", json.dumps(sizes))
+            self.logger.debug(f"   Splitter sizes saved: {sizes}")
         
         # Dock visibility states - TODOS los docks
         dock_states = {}
@@ -17709,6 +19659,16 @@ class ConfigManager:
         if geometry:
             controller.restoreGeometry(geometry)
             self.logger.debug("   Window geometry restored")
+
+        # Restaurar posición del splitter principal
+        splitter_sizes_json = self.settings.value("splitter_spectrum_waterfall", None)
+        if splitter_sizes_json and hasattr(controller, 'splitter_main_vertical'):
+            try:
+                sizes = json.loads(splitter_sizes_json)
+                controller.splitter_main_vertical.setSizes(sizes)
+                self.logger.debug(f"   Splitter sizes restored: {sizes}")
+            except Exception as e:
+                self.logger.warning(f"   Error restoring splitter sizes: {e}")
         
         # 2. LUEGO restaurar estado de los docks (esto incluye visibilidad y posiciones)
         window_state = self.settings.value("windowState")

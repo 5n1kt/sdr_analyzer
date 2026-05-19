@@ -699,6 +699,21 @@
     </item>
 
     <item>
+ <widget class="QGroupBox" name="groupBox_table">
+  <property name="title"><string>SEÑALES ACTIVAS</string></property>
+  <property name="minimumHeight"><number>150</number></property>
+  <layout class="QVBoxLayout" name="verticalLayout_table">
+   <property name="spacing"><number>2</number></property>
+   <property name="leftMargin"><number>2</number></property>
+   <property name="topMargin"><number>4</number></property>
+   <property name="rightMargin"><number>2</number></property>
+   <property name="bottomMargin"><number>2</number></property>
+   <!-- La tabla se añadirá dinámicamente desde el código -->
+  </layout>
+ </widget>
+</item>
+
+    <item>
      <spacer name="verticalSpacer">
       <property name="orientation">
        <enum>Qt::Vertical</enum>

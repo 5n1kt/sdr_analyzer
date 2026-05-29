@@ -1,14 +1,81 @@
-# Byte-compiled / cache
+# ============================================================
+# SIMANEEM - Archivos ignorados en Git
+# ============================================================
+
+# Compilación de Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
 
-# Logs
+# Módulo DSP C++ compilado (NO subir)
+dsp_core/*.so
+dsp_core/*.pyd
+dsp_core/build/
+dsp_core/dsp_core.egg-info/
+dsp_core/*.cpython-*.so
+
+# Directorios de compilación
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Entornos virtuales
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# Directorios de datos (NO subir archivos grandes)
+recordings/
+tscm_logs/
+profiles/
+logs/
+*.bin
+*.sigmf-data
+*.sigmf-meta
+*.meta
+*.wav
+*.csv
+*.npy
+*.npz
+
+# Archivos temporales
+*.tmp
+*.temp
 *.log
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Documentación compilada
+docs/_build/
+docs/html/
+docs/latex/
+*.pdf
+
+# Archivos de GPS (datos sensibles)
+gps_data/
+*.nmea
+*.gpx
+*.kml
+
+# Dependencias Python (NO subir, usar requirements.txt)
+lib/
+lib64/
+include/
+share/
+*.egg
+
+
 
 recordings/*
 !recordings/.gitkeep
 
-profiles/
-logs/
-tscm_logs/

@@ -3,7 +3,7 @@
 """
 TSCM Widget - Herramienta de Análisis Diferencial
 =================================================
-Widget profesional para el modo TSCM con gráfico de barras y tabla de señales activas.
+Widget profesional para el modo TSCM con gráfico de barras.
 """
 
 import logging
@@ -11,8 +11,7 @@ import csv
 import os
 from datetime import datetime
 from PyQt5.QtWidgets import (QDockWidget, QFileDialog, QMessageBox, 
-                             QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QWidget)
+                             QVBoxLayout, QWidget)
 from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QColor
 from PyQt5.uic import loadUi
@@ -56,10 +55,9 @@ class TSCMWidget(QDockWidget):
         # Configurar UI
         self._setup_ui()
         self._setup_connections()
-        self._setup_chart()      # Crear gráfico
-        self._setup_table()      # Crear tabla de señales activas
+        self._setup_chart()  # Crear gráfico en lugar de tabla
         
-        self.logger.info("✅ TSCMWidget inicializado (con gráfico y tabla)")
+        self.logger.info("✅ TSCMWidget inicializado (con gráfico de barras)")
 
     def set_main_controller(self, controller):
         self.main_controller = controller
@@ -119,68 +117,11 @@ class TSCMWidget(QDockWidget):
         self.tscm_chart.frequency_selected.connect(self._on_chart_frequency_selected)
         self.tscm_chart.cleared.connect(self._on_history_cleared)
         
-        # Añadir al layout principal (después de RESULTADOS)
+        # Añadir al layout principal
         if hasattr(self, 'verticalLayout_main'):
             self.verticalLayout_main.addWidget(self.tscm_chart)
         
         self.logger.info("✅ Gráfico TSCM añadido")
-
-    def _setup_table(self):
-        """Crea y configura la tabla de señales activas en tiempo real."""
-        # Buscar el contenedor de la tabla
-        table_container = None
-        if hasattr(self, 'groupBox_table'):
-            table_container = self.groupBox_table
-        else:
-            # Crear groupbox si no existe
-            from PyQt5.QtWidgets import QGroupBox
-            self.groupBox_table = QGroupBox("SEÑALES ACTIVAS EN TIEMPO REAL")
-            self.groupBox_table.setMinimumHeight(150)
-            if hasattr(self, 'verticalLayout_main'):
-                self.verticalLayout_main.addWidget(self.groupBox_table)
-            table_container = self.groupBox_table
-        
-        # Configurar layout del contenedor
-        if table_container.layout() is None:
-            layout = QVBoxLayout(table_container)
-            layout.setContentsMargins(4, 6, 4, 4)
-        else:
-            layout = table_container.layout()
-            # Limpiar widgets existentes
-            while layout.count():
-                item = layout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
-        
-        # Crear tabla
-        self.table_detections = QTableWidget()
-        self.table_detections.setColumnCount(6)
-        self.table_detections.setHorizontalHeaderLabels([
-            'Frecuencia (MHz)', 'BW (MHz)', 'Potencia (dB)', 
-            'SNR (dB)', 'Tipo', 'Alerta'
-        ])
-        
-        # Configurar columnas
-        header = self.table_detections.horizontalHeader()
-        header.setStretchLastSection(True)
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        
-        self.table_detections.setAlternatingRowColors(True)
-        self.table_detections.setSelectionBehavior(self.table_detections.SelectRows)
-        self.table_detections.setMinimumHeight(120)
-        self.table_detections.setSortingEnabled(True)
-        
-        # Conectar doble clic para sintonizar
-        self.table_detections.cellDoubleClicked.connect(self._on_table_double_click)
-        
-        # Añadir al layout
-        layout.addWidget(self.table_detections)
-        
-        self.logger.info("✅ Tabla de señales activas creada")
 
     def _setup_connections(self):
         """Conecta las señales internas."""
@@ -200,7 +141,8 @@ class TSCMWidget(QDockWidget):
             self.spinBox_dwell.valueChanged.connect(self.tscm_dwell_changed)
         
         if hasattr(self, 'pushButton_export_log'):
-            self.pushButton_export_log.clicked.connect(self._on_export_clicked)
+            #self.pushButton_export_log.clicked.connect(self._on_export_clicked)
+            self.pushButton_export_log.clicked.connect(self.export_historical_log)  # Cambiar a nuevo método
         
         if hasattr(self, 'checkBox_sound_alert'):
             self.checkBox_sound_alert.toggled.connect(self._on_sound_toggled)
@@ -265,20 +207,8 @@ class TSCMWidget(QDockWidget):
             )
 
     def _on_history_cleared(self):
+        """Maneja limpieza de historial."""
         self.logger.info("🗑️ Historial limpiado desde el gráfico")
-
-    def _on_table_double_click(self, row, column):
-        """Doble clic en la tabla para sintonizar frecuencia."""
-        freq_item = self.table_detections.item(row, 0)
-        if freq_item and self.main_controller:
-            try:
-                freq_mhz = float(freq_item.text())
-                self.main_controller.on_frequency_changed_from_plot(freq_mhz)
-                self.main_controller.statusbar.showMessage(
-                    f"🎯 Sintonizando {freq_mhz:.4f} MHz", 2000
-                )
-            except ValueError:
-                pass
 
     # ------------------------------------------------------------------------
     # MÉTODOS PÚBLICOS
@@ -346,7 +276,7 @@ class TSCMWidget(QDockWidget):
 
     def update_stats(self, alert_count: int, detections: list = None):
         """
-        Actualiza estadísticas, gráfico y tabla.
+        Actualiza estadísticas y gráfico.
         
         Args:
             alert_count: Número total de bins en alerta
@@ -384,9 +314,6 @@ class TSCMWidget(QDockWidget):
                     'type': det.get('type', 'Desconocido')
                 })
         
-        # ===== ACTUALIZAR TABLA DE SEÑALES ACTIVAS =====
-        self._update_table(detections)
-        
         # Actualizar gráfico
         if hasattr(self, 'tscm_chart') and detections:
             # Obtener rango de frecuencia actual
@@ -409,100 +336,6 @@ class TSCMWidget(QDockWidget):
         if self._sound_enabled and detections and len(detections) > 0:
             self._play_alert_sound(detections)
 
-    def _update_table(self, detections):
-        """Actualiza la tabla con las detecciones actuales."""
-        if not hasattr(self, 'table_detections'):
-            return
-        
-        self.table_detections.setRowCount(0)
-        
-        if not detections:
-            return
-        
-        # Ordenar por potencia descendente
-        detections_sorted = sorted(detections, key=lambda x: x.get('power', -100), reverse=True)
-        
-        for i, det in enumerate(detections_sorted):
-            self.table_detections.insertRow(i)
-            
-            # Frecuencia
-            freq = det.get('freq', 0)
-            freq_item = QTableWidgetItem(f"{freq:.4f}")
-            freq_item.setForeground(QColor(255, 200, 100))
-            self.table_detections.setItem(i, 0, freq_item)
-            
-            # Ancho de banda
-            bw = det.get('bandwidth', 0)
-            bw_item = QTableWidgetItem(f"{bw:.2f}")
-            self.table_detections.setItem(i, 1, bw_item)
-            
-            # Potencia
-            power = det.get('power', -100)
-            power_item = QTableWidgetItem(f"{power:.1f}")
-            if power > -40:
-                power_item.setForeground(QColor(255, 80, 80))
-            elif power > -60:
-                power_item.setForeground(QColor(255, 200, 80))
-            elif power > -80:
-                power_item.setForeground(QColor(80, 255, 80))
-            else:
-                power_item.setForeground(QColor(150, 150, 150))
-            self.table_detections.setItem(i, 2, power_item)
-            
-            # SNR
-            snr = det.get('snr', 0)
-            snr_item = QTableWidgetItem(f"{snr:.1f}")
-            if snr > 20:
-                snr_item.setForeground(QColor(80, 255, 80))
-            elif snr > 10:
-                snr_item.setForeground(QColor(255, 200, 80))
-            else:
-                snr_item.setForeground(QColor(150, 150, 150))
-            self.table_detections.setItem(i, 3, snr_item)
-            
-            # Tipo
-            type_icon = det.get('type_icon', '📻')
-            type_name = det.get('type', 'Desconocido')
-            type_item = QTableWidgetItem(f"{type_icon} {type_name}")
-            self._set_type_color(type_item, type_name)
-            self.table_detections.setItem(i, 4, type_item)
-            
-            # Nivel de alerta
-            if power > -40:
-                alert_icon = "🔴 CRÍTICA"
-                alert_color = QColor(255, 80, 80)
-            elif power > -60:
-                alert_icon = "🟡 ALTA"
-                alert_color = QColor(255, 200, 80)
-            elif power > -80:
-                alert_icon = "🟢 MEDIA"
-                alert_color = QColor(80, 255, 80)
-            else:
-                alert_icon = "⚪ BAJA"
-                alert_color = QColor(150, 150, 150)
-            alert_item = QTableWidgetItem(alert_icon)
-            alert_item.setForeground(alert_color)
-            self.table_detections.setItem(i, 5, alert_item)
-        
-        # Ordenar por potencia (columna 2) descendente
-        self.table_detections.sortItems(2, Qt.DescendingOrder)
-
-    def _set_type_color(self, item, signal_type):
-        """Asigna color según el tipo de señal."""
-        type_colors = {
-            'WiFi': (255, 150, 50),
-            'Drone': (255, 100, 100),
-            'Radar': (255, 50, 50),
-            'Voz': (100, 255, 100),
-            'Digital': (100, 200, 255),
-            'Portadora': (255, 255, 100),
-            'Desconocido': (150, 150, 150)
-        }
-        for key, color in type_colors.items():
-            if key in signal_type:
-                item.setForeground(QColor(*color))
-                break
-
     def reset_stats(self):
         """Reinicia las estadísticas."""
         if hasattr(self, 'label_active_alerts'):
@@ -517,10 +350,6 @@ class TSCMWidget(QDockWidget):
         # Limpiar histórico de detecciones
         self._detection_history = []
         self._current_detections = []
-        
-        # Limpiar tabla
-        if hasattr(self, 'table_detections'):
-            self.table_detections.setRowCount(0)
         
         if hasattr(self, 'tscm_chart'):
             self.tscm_chart.clear_historical()
@@ -564,6 +393,69 @@ class TSCMWidget(QDockWidget):
                 f"✅ {len(self._detection_history)} detecciones exportadas a:\n{filename}"
             )
             self.logger.info(f"📤 Exportadas {len(self._detection_history)} detecciones a {filename}")
+            
+        except Exception as e:
+            self.logger.error(f"Error exportando: {e}")
+            QMessageBox.warning(self, "Error", f"Error al exportar:\n{e}")
+
+    def export_historical_log(self):
+        """Exporta el log completo de señales activas a CSV."""
+        if not hasattr(self, 'tscm_chart'):
+            QMessageBox.warning(self, "Exportar", "Gráfico no disponible")
+            return
+        
+        historical_data = self.tscm_chart.get_historical_data()
+        
+        if not historical_data and not self._detection_history:
+            QMessageBox.information(self, "Exportar", "No hay datos para exportar")
+            return
+        
+        try:
+            os.makedirs("tscm_logs", exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Exportar histórico de frecuencias
+            filename_hist = f"tscm_logs/tscm_historial_{timestamp}.csv"
+            with open(filename_hist, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Frecuencia (MHz)', 'Detecciones', 'Intensidad'])
+                
+                max_count = max([d['detection_count'] for d in historical_data]) if historical_data else 1
+                for item in historical_data:
+                    intensity = int(100 * item['detection_count'] / max_count)
+                    writer.writerow([
+                        f"{item['frequency_mhz']:.4f}",
+                        item['detection_count'],
+                        f"{intensity}%"
+                    ])
+            
+            # Exportar detecciones por tiempo
+            filename_det = f"tscm_logs/tscm_detecciones_{timestamp}.csv"
+            with open(filename_det, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'Timestamp', 'Frecuencia (MHz)', 'Potencia (dB)', 
+                    'Ancho Banda (MHz)', 'SNR (dB)', 'Tipo'
+                ])
+                
+                for det in self._detection_history:
+                    writer.writerow([
+                        det['timestamp'],
+                        f"{det['freq']:.4f}",
+                        f"{det['power']:.1f}",
+                        f"{det['bandwidth']:.2f}",
+                        f"{det['snr']:.1f}",
+                        det['type']
+                    ])
+            
+            QMessageBox.information(
+                self, "Exportar", 
+                f"✅ Datos exportados:\n"
+                f"📊 Historial: {filename_hist}\n"
+                f"📋 Detecciones: {filename_det}\n"
+                f"Total: {len(historical_data)} frecuencias, {len(self._detection_history)} eventos"
+            )
+            self.logger.info(f"📤 Exportados {len(historical_data)} frecuencias y {len(self._detection_history)} eventos")
             
         except Exception as e:
             self.logger.error(f"Error exportando: {e}")

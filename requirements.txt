@@ -1,0 +1,6 @@
+# DSP Core
+pybind11>=2.10.0
+numpy>=1.24.0
+
+# FFTW3 (system package, not pip)
+# sudo apt-get install libfftw3-dev libfftw3-single3
